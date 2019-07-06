@@ -1,4 +1,4 @@
-# Blocase In 10 Minutes
+## Blocase In 10 Minutes
 > This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
 > System prerequisites:
 > * [Node.js](https://nodejs.org/)

@@ -6,4 +6,4 @@
 > The generic blockchain for all
 
 [Home Page](https://www.blocase.com)
-[Getting Started](#getting-started)
+[Getting Started](#blocase-in-10-minutes)
