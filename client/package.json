@@ -1,0 +1,49 @@
+{
+  "name": "blocase-client",
+  "version": "0.0.2",
+  "description": "a JS client to access Blocase server",
+  "main": "index.js",
+  "scripts": {
+    "coverage": "nyc --branches 100 --functions 100 --check-coverage npm run unit",
+    "standard": "standard",
+    "test": "npm run standard && npm run unit",
+    "unit": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codingpeasant/blocase-js.git"
+  },
+  "keywords": [
+    "blocase",
+    "blockchain",
+    "database",
+    "nosql",
+    "bitcoin",
+    "ethereum"
+  ],
+  "author": "codingpeasant <zhaofanzf@gmail.com>",
+  "contributors": [
+    {
+      "name": "Fan Zhao",
+      "email": "zhaofanzf@gmail.com",
+      "url": "https://github.com/codingpeasant"
+    }
+  ],
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/codingpeasant/blocase-js/issues"
+  },
+  "homepage": "https://github.com/codingpeasant/blocase-js",
+  "dependencies": {
+    "ethereumjs-util": "^6.0.0",
+    "ethereumjs-wallet": "^0.6.3",
+    "axios": "^0.19.0"
+  },
+  "devDependencies": {
+    "node-fetch": "^1.6.3",
+    "nyc": "^14.1.1",
+    "proxyquire": "^1.7.10",
+    "standard": "^10.0.2",
+    "tape": "^4.6.2"
+  }
+}
