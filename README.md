@@ -47,7 +47,7 @@ __Windows__
 wget https://s3.us-east-2.amazonaws.com/blocase/windows/blocase-v0.0.1-win64.exe
 ```
 
-# Docs
+## Docs
 Checkout [Blocase In 10 Minutes](https://www.blocase.com/docs/#/)
 
 ## License
