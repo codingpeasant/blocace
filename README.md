@@ -12,9 +12,11 @@ __Blocase__ is a distributed NoSQL document database powered by the blockchain t
 ## Install
 
 ### Compile on Linux/MacOS
-> Prerequisite: Go version: 1.10 or later
+> Prerequisite: Go version: 1.12 or later
 ```bash
 git clone https://github.com/codingpeasant/blocase.git
+mkdir -p ~/go/src/github.com/blocase
+mv ./blocase ~/go/src/github.com/blocase/
 go get github.com/sirupsen/logrus
 go get github.com/dgrijalva/jwt-go
 go get github.com/boltdb/bolt
@@ -25,10 +27,11 @@ go get gopkg.in/validator.v2
 go get github.com/syndtr/goleveldb/leveldb
 go get github.com/urfave/cli
 go get github.com/thoas/go-funk
-go get github.com/libp2p/go-libp2p
 cd ~/go/src/github.com/blocase/blocase
 go build -ldflags="-s -w"
 ```
+You can also use Go Modules to get the dependencies with `export GO111MODULE=on` and `go get`.
+
 #### OR
 ### Download
 
