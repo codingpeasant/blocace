@@ -24,8 +24,8 @@ func issueToken(address string, role Role) (string, error) {
 		jwt.StandardClaims{
 			IssuedAt:  time.Now().Unix(),
 			ExpiresAt: time.Now().Unix() + 600,
-			Issuer:    "blocase",
-			Audience:  "blocase user",
+			Issuer:    "blocace",
+			Audience:  "blocace user",
 		},
 	}
 

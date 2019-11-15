@@ -73,7 +73,7 @@ type TransactionCreationResponse struct {
 func (h HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, "{\"message\": \"Blocase, the generic blockchain for all...\", \"version\": \""+version+"\"}")
+	fmt.Fprintln(w, "{\"message\": \"Blocace, the generic blockchain for all...\", \"version\": \""+version+"\"}")
 }
 
 // CollectionMappingCreation handles the creation of the collection (and index mapping)

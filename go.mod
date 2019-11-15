@@ -1,4 +1,4 @@
-module github.com/blocase/blocase
+module github.com/blocace/blocace
 
 go 1.12
 

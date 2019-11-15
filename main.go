@@ -24,7 +24,7 @@ const walletsBucket = "wallets"
 const collectionsBucket = "collections"
 const genesisCoinbaseRawData = `{"isActive":true,"balance":"$1,608.00","picture":"http://placehold.it/32x32","age":37,"eyeColor":"brown","name":"Rosa Sherman","gender":"male","company":"STELAECOR","email":"rosasherman@stelaecor.com","phone":"+1 (907) 581-2115","address":"546 Meserole Street, Clara, New Jersey, 5471","about":"Reprehenderit eu pariatur proident id voluptate eu pariatur minim ut magna aliquip esse. Eu et quis sint quis et anim duis non tempor esse minim voluptate fugiat. Cillum qui nulla aute ullamco.\r\n","registered":"2018-01-15T05:53:18 +05:00","latitude":-55.183323,"longitude":-63.077504,"tags":["laborum","ex","officia","nisi","adipisicing","commodo","incididunt"],"friends":[{"id":0,"name":"Franks Harper"},{"id":1,"name":"Bettye Nash"},{"id":2,"name":"Mai Buck"}],"greeting":"Hello, Rosa Sherman! You have 3 unread messages.","favoriteFruit":"strawberry"}`
 
-var secret = "blocase_secret"
+var secret = "blocace_secret"
 var dataDir string
 var maxTxsPerBlock int
 var maxTimeToGenerateBlock int // milliseconds
@@ -51,18 +51,18 @@ func init() {
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "Blocase Community Edition"
+	app.Name = "Blocace Community Edition"
 	app.Version = version
-	app.Copyright = "(c) 2019 Blocase Labs"
+	app.Copyright = "(c) 2019 Blocace Labs"
 	app.Usage = "The Generic Blockchain Solution"
-	app.HelpName = "blocase"
+	app.HelpName = "blocace"
 
 	app.Commands = []cli.Command{
 		{
 			Name:     "server",
 			Aliases:  []string{"s"},
-			Usage:    "start the major blocase server",
-			HelpName: "blocase server",
+			Usage:    "start the major blocace server",
+			HelpName: "blocace server",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "dir, d",
@@ -109,7 +109,7 @@ func main() {
 			Name:     "keygen",
 			Aliases:  []string{"k"},
 			Usage:    "generate and register an admin account",
-			HelpName: "blocase keygen",
+			HelpName: "blocace keygen",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:        "dir, d",
@@ -214,7 +214,7 @@ func keygen() {
 		generateAdminAccount(db)
 
 	} else {
-		log.Panic("cannot find the db file. please run blocase server first to create the database")
+		log.Panic("cannot find the db file. please run blocace server first to create the database")
 	}
 }
 
