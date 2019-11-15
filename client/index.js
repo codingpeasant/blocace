@@ -6,7 +6,7 @@ const secp256k1 = require('secp256k1')
 
 const httpRequestTimeout = 5000 // ms
 
-class Blocase {
+class Blocace {
   constructor (wallet, hostname, port, protocol) {
     this.wallet = wallet
     this.hostname = hostname || 'localhost'
@@ -229,4 +229,4 @@ class Blocase {
   }
 }
 
-module.exports = Blocase
+module.exports = Blocace
