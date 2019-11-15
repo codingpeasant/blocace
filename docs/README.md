@@ -1,10 +1,10 @@
-## Blocase In 10 Minutes
+## Blocace In 10 Minutes
 > This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
 > System prerequisites:
 > * [Node.js](https://nodejs.org/)
 > * JS libraries:
 
-```javsscript
+```javascript
 {
   "dependencies": {
     "ethereumjs-wallet": "^v0.6.2",
@@ -16,15 +16,15 @@
 
 ```
 
-### Start Blocase server
+### Start Blocace server
 
 ```bash
-$ ./blocase server
+$ ./blocace server
 
-		 ____  __     __    ___   __   ____  ____ 
-		(  _ \(  )   /  \  / __) / _\ / ___)(  __)
-		 ) _ (/ (_/\(  O )( (__ /    \\___ \ ) _) 
-		(____/\____/ \__/  \___)\_/\_/(____/(____)
+		 ____  __     __    ___   __    ___   ____ 
+		(  _ \(  )   /  \  / __) / _\  / __) (  __)
+		 ) _ (/ (_/\(  O )( (__ /    \( (__  ) _) 
+		(____/\____/ \__/  \___)\_/\_/ \___) (____)
 
 			Community Edition v0.0.1
 
@@ -34,7 +34,7 @@ INFO[2019-01-01T01:26:04Z] opening existing collections...
 INFO[2019-01-01T01:26:04Z] awaiting signal...                           
 INFO[2019-01-01T01:26:04Z] begin to monitor transactions every 2000 milliseconds... 
 ```
-By default, __Blocase__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 256; it listens on port 6899 for web API calls.
+By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 256; it listens on port 6899 for web API calls.
 
 ### Create account
 ```javascript
@@ -74,7 +74,7 @@ axios.post('http://localhost:6899/account', {
 ```
 
 ### Generate challenge and get JWT
-__Blocase__ web API needs authentication/authorization to access. [JSON Web Token](https://jwt.io) is used for this purpose.
+__Blocace__ web API needs authentication/authorization to access. [JSON Web Token](https://jwt.io) is used for this purpose.
 
 ```javascript
 const getChallenge = async () => {
@@ -263,7 +263,7 @@ axios.request({
 ```
 
 ### Query documents
-__Blocase__ is shipped with a complete query DSL. The following example is to find all the documents containing `Carly` in field `name`.
+__Blocace__ is shipped with a complete query DSL. The following example is to find all the documents containing `Carly` in field `name`.
 
 ```javascript
 axios.request({
@@ -360,7 +360,7 @@ axios.request({
 The response includes the following system fields: `_id` (transaction ID), `_blockId`, `_source`, `_timestamp` and `_signature`.
 
 ### Verify a document
-__Blocase__ maintains a [Merkle tree](https://en.wikipedia.org/wiki/Merkle_tree) for each block. The client is able to use the tree to verify if a document is included in a block and also its integrity in a trustless environment.
+__Blocace__ maintains a [Merkle tree](https://en.wikipedia.org/wiki/Merkle_tree) for each block. The client is able to use the tree to verify if a document is included in a block and also its integrity in a trustless environment.
 
 ```javascript
 axios.request({
@@ -472,10 +472,10 @@ axios.request({
 ```
 
 # Usage Reference
-## Blocase Javascript API Reference
-To develop DAPP talking to Blocase server, we create a handy blocase javascript client at [blocase-client](https://www.npmjs.com/package/blocase-client). Check out [example.js](https://github.com/codingpeasant/blocase-js/blob/master/example.js) for the full usage of the client lib.
+## Blocace Javascript API Reference
+To develop DAPP talking to Blocace server, we create a handy blocace javascript client at [blocace-client](https://www.npmjs.com/package/blocace-client). Check out [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) for the full usage of the client lib.
 
-## Blocase CLI reference
+## Blocace CLI reference
 !> Coming soon
-## Blocase web API reference
+## Blocace web API reference
 !> Coming soon
