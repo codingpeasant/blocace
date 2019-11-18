@@ -1,4 +1,4 @@
-<a href="https://www.blocace.com">
+<a href="http://www.blocace.com">
 	<img width="300" src="./blocace-full-logo.png" alt="blocace Logo" />
 </a>
 <hr/>
@@ -13,6 +13,19 @@ __Blocace__ is a distributed NoSQL document database powered by the blockchain t
 
 ### Compile on Linux/MacOS
 > Prerequisite: Go version: 1.12 or later
+
+Build and run with Go Modules
+```bash
+git clone https://github.com/codingpeasant/blocace.git
+cd blocace
+export GO111MODULE=on # Go 1.12 and earlier
+go get
+go build -ldflags="-s -w -X main.version=0.0.1"
+./blocace server
+```
+Windows need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies.
+
+You can also use the old way to get dependencies and run
 ```bash
 git clone https://github.com/codingpeasant/blocace.git
 mkdir -p ~/go/src/github.com/blocace
@@ -28,9 +41,9 @@ go get github.com/syndtr/goleveldb/leveldb
 go get github.com/urfave/cli
 go get github.com/thoas/go-funk
 cd ~/go/src/github.com/blocace/blocace
-go build -ldflags="-s -w"
+go build -ldflags="-s -w -X main.version=0.0.1"
+./blocace server
 ```
-You can also use Go Modules to get the dependencies with `export GO111MODULE=on` (Go 1.12 and earlier) and `go get`.
 
 ## Docs
 Checkout [Blocace In 10 Minutes](https://github.com/codingpeasant/blocace/tree/master/docs)

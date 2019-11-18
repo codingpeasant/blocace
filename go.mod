@@ -8,6 +8,7 @@ require (
 	github.com/blevesearch/go-porterstemmer v1.0.2 // indirect
 	github.com/blevesearch/segment v0.0.0-20160915185041-762005e7a34f // indirect
 	github.com/boltdb/bolt v1.3.2-0.20180302180052-fd01fc79c553
+	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/couchbase/vellum v0.0.0-20190626091642-41f2deade2cf // indirect
 	github.com/dgrijalva/jwt-go v3.2.1-0.20190620180102-5e25c22bd5d6+incompatible
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
