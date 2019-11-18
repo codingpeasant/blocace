@@ -1,4 +1,4 @@
-<a href="http://www.blocace.com">
+<a href="http://www.blocase.com">
 	<img width="300" src="./blocace-full-logo.png" alt="blocace Logo" />
 </a>
 <hr/>
