@@ -23,7 +23,7 @@ go get
 go build -ldflags="-s -w -X main.version=0.0.1"
 ./blocace server
 ```
-Windows need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies.
+Windows needs to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies.
 
 You can also use the old way to get dependencies and run
 ```bash
@@ -46,7 +46,7 @@ go build -ldflags="-s -w -X main.version=0.0.1"
 ```
 
 ## Docs
-Checkout [Blocace In 10 Minutes](https://github.com/codingpeasant/blocace/tree/master/docs)
+Checkout [Blocace In 10 Minutes](http://blocase.com/docs/#/)
 
 ## License
 Blocace is licensed as [Apache 2.0](https://github.com/codingpeasant/blocace/blob/master/LICENSE).
