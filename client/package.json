@@ -43,7 +43,7 @@
     "node-fetch": "^1.6.3",
     "nyc": "^14.1.1",
     "proxyquire": "^1.7.10",
-    "standard": "^10.0.2",
+    "standard": "^14.3.1",
     "tape": "^4.6.2"
   }
 }
