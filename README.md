@@ -54,7 +54,7 @@ MD5: 5e2c078ed359ecc0f38980bc759d6ac9
 ```
 #### macOS
 ```
-https://blocace.s3.us-east-2.amazonaws.com/windows/blocace-v0.0.1.exe
+https://blocace.s3.us-east-2.amazonaws.com/macos/blocace-v0.0.1
 MD5: 6a27775d477bc89097f9a927b58fdf69
 ```
 #### Windows
