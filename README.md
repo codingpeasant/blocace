@@ -1,4 +1,4 @@
-<a href="http://www.blocase.com">
+<a href="https://www.blocace.com">
 	<img width="300" src="./blocace-full-logo.png" alt="blocace Logo" />
 </a>
 <hr/>
@@ -11,8 +11,10 @@ __Blocace__ is a distributed NoSQL document database powered by the blockchain t
 
 ## Install
 
-### Compile on Linux/MacOS
-> Prerequisite: Go version: 1.12 or later
+### Compile on Linux/macOS/Windows
+> Prerequisite: Go version: 1.12 or later; GCC 5.1 or later.
+> 
+> Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike.
 
 Build and run with Go Modules
 ```bash
@@ -23,7 +25,6 @@ go get
 go build -ldflags="-s -w -X main.version=0.0.1"
 ./blocace server
 ```
-Windows needs to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies.
 
 You can also use the old way to get dependencies and run
 ```bash
@@ -44,9 +45,27 @@ cd ~/go/src/github.com/blocace/blocace
 go build -ldflags="-s -w -X main.version=0.0.1"
 ./blocace server
 ```
+### Download for Linux/macOS/Windows
+If you'd like to try Blocace directly, here is the links and the binary's MD5 checksum
+#### Linux
+```
+https://blocace.s3.us-east-2.amazonaws.com/linux/blocace-v0.0.1
+MD5: 5e2c078ed359ecc0f38980bc759d6ac9
+```
+#### macOS
+```
+https://blocace.s3.us-east-2.amazonaws.com/windows/blocace-v0.0.1.exe
+MD5: 6a27775d477bc89097f9a927b58fdf69
+```
+#### Windows
+```
+https://blocace.s3.us-east-2.amazonaws.com/windows/blocace-v0.0.1.exe
+MD5: 2dd5f6b5bb5c66a5c71254faf50081a4
+```
+
 
 ## Docs
-Checkout [Blocace In 10 Minutes](http://blocase.com/docs/#/)
+Checkout [Blocace In 10 Minutes](https://blocace.com/docs/#/)
 
 ## License
 Blocace is licensed as [Apache 2.0](https://github.com/codingpeasant/blocace/blob/master/LICENSE).
