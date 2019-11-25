@@ -3,7 +3,7 @@
 </a>
 <hr/>
 
-__Blocace__ is a distributed NoSQL document database powered by the blockchain technology.
+__Blocace__ is a distributed document database powered by the blockchain technology.
 
 ## Note to Developers
 * This is a prototype.
