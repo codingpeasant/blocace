@@ -376,6 +376,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 //     "firstName": "Hooper",
 //     "lastName": "Vincent",
 //     "company": "MITROC",
+//     "position": "VP of Marketing",
 //     "email": "hoopervincent@mitroc.com",
 //     "phone": "+1 (849) 503-2756",
 //     "address": "699 Canton Court, Mulino, South Dakota, 9647",
@@ -468,6 +469,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 // 	"firstName": "Hooper",
 // 	"lastName": "Vincent",
 // 	"company": "MITROC",
+//  "position": "VP of Marketing",
 // 	"email": "hoopervincent@mitroc.com",
 // 	"phone": "+1 (849) 503-2756",
 // 	"address": "699 Canton Court, Mulino, South Dakota, 9647"

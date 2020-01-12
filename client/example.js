@@ -1,7 +1,7 @@
 const Blocace = require('./index.js')
 
 // initializing the default admin account
-var blocace = Blocace.createFromPrivateKey('44e654a98faf8e608bf833dd8a5e7bd448c4c7118008208917ca06d48254ff12')
+var blocace = Blocace.createFromPrivateKey('879aac33205b270c4a96109d41049a1fd37e595550f8a29271656c886a065c4f')
 
 // encrypt and decrypt the seed
 var encryptPrivKey = blocace.encryptPrivateKey('123456')
