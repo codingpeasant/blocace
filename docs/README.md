@@ -42,8 +42,8 @@ time="2020-01-18T21:52:56-05:00" level=info msg="awaiting signal..."
 ```
 By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 256; it listens on port 6899 for web API calls.
 
-## The following is a step-by-step breakdown of the Blocase Rest APIs
-> You can also skip reading this document or now and run [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) leveraging [Blocase JS client](https://github.com/codingpeasant/blocace/blob/master/client/index.js) with Node directly to quickly get your hands dirty.
+## The following is a breakdown of Blocace REST APIs
+> You can also skip reading this document for now and run [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) leveraging [Blocase JS client](https://github.com/codingpeasant/blocace/blob/master/client/index.js) directly to quickly get your hands dirty.
 
 ### Create account
 ```javascript
