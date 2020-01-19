@@ -1,4 +1,4 @@
-## Blocace In 10 Minutes
+# Blocace In 10 Minutes
 > This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
 > System prerequisites:
 > * [Node.js](https://nodejs.org/)
@@ -7,34 +7,43 @@
 ```javascript
 {
   "dependencies": {
-    "ethereumjs-wallet": "^v0.6.2",
-    "ethereumjs-util": "^v6.0.0",
-    "bip39": "^2.5.0",
-    "axios": "^0.19.0"
+    "ethers": "^4.0.43",
+    "axios": "^0.19.1"
   }
 }
 
 ```
 
-### Start Blocace server
+## Start Blocace server
 
 ```bash
 $ ./blocace server
 
-		 ____  __     __    ___   __    ___  ____ 
-		(  _ \(  )   /  \  / __) / _\  / __)(  __)
-		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
-		(____/\____/ \__/  \___)\_/\_/ \___)(____)
+                 ____  __     __    ___   __    ___  ____
+                (  _ \(  )   /  \  / __) / _\  / __)(  __)
+                 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _)
+                (____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition v0.0.1
+                        Community Edition 0.0.1
 
-INFO[2019-01-01T01:26:04Z] configurations: maxtime=2000 maxtx=256 path=data port=6899
-INFO[2019-01-01T01:26:04Z] db file exists.                              
-INFO[2019-01-01T01:26:04Z] opening existing collections...              
-INFO[2019-01-01T01:26:04Z] awaiting signal...                           
-INFO[2019-01-01T01:26:04Z] begin to monitor transactions every 2000 milliseconds... 
+time="2020-01-18T21:52:56-05:00" level=info msg="configurations: " maxtime=2000 maxtx=256 path=data port=6899
+time="2020-01-18T21:52:56-05:00" level=info msg="cannot find the db file. creating new..."
+time="2020-01-18T21:52:56-05:00" level=info msg="cannot (data\collections): cannot open index, path does not exist. creating the default collection instead..."
+time="2020-01-18T21:52:56-05:00" level=info msg="the account has been created and registered successfully"
+
+####################
+PRIVATE KEY: a6df359954745422941e16b144594c704a74d591129981745efbf78e99ae53e0
+WARNING: THIS PRIVATE KEY ONLY SHOWS ONCE. PLEASE SAVE IT NOW AND KEEP IT SAFE. YOU ARE THE ONLY PERSON THAT IS SUPPOSED TO OWN THIS KEY IN THE WORLD.
+####################
+
+time="2020-01-18T21:52:56-05:00" level=info msg="begin to monitor transactions every 2000 milliseconds..."
+time="2020-01-18T21:52:56-05:00" level=info msg="awaiting signal..."
+
 ```
 By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 256; it listens on port 6899 for web API calls.
+
+## The following is a step-by-step breakdown of the Blocase Rest APIs
+> You can also skip reading this document or now and run [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) leveraging [Blocase JS client](https://github.com/codingpeasant/blocace/blob/master/client/index.js) with Node directly to quickly get your hands dirty.
 
 ### Create account
 ```javascript

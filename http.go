@@ -383,11 +383,11 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 //     "publicKey":"e4a15344314a15c70a47e18fadc8117939a6dc5ed863ced84a898694b241d10fa129eff3989ec98393c52bac6d86d0d72534061538eb1e513aaae4def5f83fbb"
 // }
 func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, true)
-	if err != nil {
-		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
-		return
-	}
+	// err := processJWT(r, true)
+	// if err != nil {
+	// 	http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
+	// 	return
+	// }
 
 	// read the request body
 	requestBody, err := ioutil.ReadAll(r.Body)
@@ -475,7 +475,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 // 	"address": "699 Canton Court, Mulino, South Dakota, 9647"
 // }
 func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, true)
+	err := processJWT(r, false)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -483,6 +483,11 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 	address := vars["address"]
+
+	if address != r.Header.Get("address") {
+		http.Error(w, "{\"message\": \"you can only update your own account\"}", 401)
+		return
+	}
 
 	// read the request body
 	requestBody, err := ioutil.ReadAll(r.Body)
