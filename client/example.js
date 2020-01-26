@@ -3,10 +3,10 @@ const Blocace = require('./index.js')
 // initializing the default admin account
 // Replace the private key with the Blocase server admin key:
 // ####################
-// PRIVATE KEY: a6df359954745422941e16b144594c704a74d591129981745efbf78e99ae53e0
+// PRIVATE KEY: 39b7c93247a6fd26e7f6f357030c76fc20263a55e9f2e5cd5e80f1285233c936
 // WARNING: THIS PRIVATE KEY ONLY SHOWS ONCE. PLEASE SAVE IT NOW AND KEEP IT SAFE. YOU ARE THE ONLY PERSON THAT IS SUPPOSED TO OWN THIS KEY IN THE WORLD.
 // ####################
-var blocace = Blocace.createFromPrivateKey('a6df359954745422941e16b144594c704a74d591129981745efbf78e99ae53e0')
+var blocace = Blocace.createFromPrivateKey('39b7c93247a6fd26e7f6f357030c76fc20263a55e9f2e5cd5e80f1285233c936')
 
 // encrypt and decrypt the seed
 var encryptPrivKey = blocace.encryptPrivateKey('123456')

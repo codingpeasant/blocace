@@ -29,6 +29,7 @@ var maxTxsPerBlock int
 var maxTimeToGenerateBlock int // milliseconds
 var port string
 var version string
+var loglevel string
 
 func init() {
 	fmt.Printf(`
@@ -45,7 +46,6 @@ func init() {
 		FullTimestamp: true,
 	})
 	log.SetOutput(os.Stdout)
-	log.SetLevel(log.InfoLevel)
 }
 
 func main() {
@@ -76,7 +76,7 @@ func main() {
 				},
 				cli.IntFlag{
 					Name:        "maxtx, m",
-					Value:       256,
+					Value:       1024,
 					Usage:       "the max transactions in a block",
 					Destination: &maxTxsPerBlock,
 				},
@@ -92,13 +92,39 @@ func main() {
 					Usage:       "the port that the server listens on",
 					Destination: &port,
 				},
+				cli.StringFlag{
+					Name:        "loglevel, l",
+					Value:       "info",
+					Usage:       "the log levels: panic, fatal, error, warn, info, debug, trace",
+					Destination: &loglevel,
+				},
 			},
 			Action: func(c *cli.Context) error {
+				switch level := loglevel; level {
+				case "panic":
+					log.SetLevel(log.PanicLevel)
+				case "fatal":
+					log.SetLevel(log.PanicLevel)
+				case "error":
+					log.SetLevel(log.ErrorLevel)
+				case "warn":
+					log.SetLevel(log.WarnLevel)
+				case "info":
+					log.SetLevel(log.InfoLevel)
+				case "debug":
+					log.SetLevel(log.DebugLevel)
+				case "trace":
+					log.SetLevel(log.TraceLevel)
+				default:
+					log.SetLevel(log.InfoLevel)
+				}
+
 				log.WithFields(log.Fields{
-					"path":    dataDir,
-					"maxtx":   maxTxsPerBlock,
-					"maxtime": maxTimeToGenerateBlock,
-					"port":    port,
+					"path":     dataDir,
+					"maxtx":    maxTxsPerBlock,
+					"maxtime":  maxTimeToGenerateBlock,
+					"port":     port,
+					"loglevel": loglevel,
 				}).Info("configurations: ")
 				server()
 				return nil

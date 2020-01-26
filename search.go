@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve"
-	"github.com/blevesearch/bleve/index/store/goleveldb"
+	"github.com/blevesearch/bleve/index/scorch"
 	"github.com/boltdb/bolt"
 
 	log "github.com/sirupsen/logrus"
@@ -39,8 +39,8 @@ type Document struct {
 // NewSearch create an instance to access the search features
 func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 	blockchainIndices := make(map[string]bleve.Index)
-	indexDirRoot := dataDir + filepath.Dir("/") + "collections"
 
+	indexDirRoot := dataDir + filepath.Dir("/") + "collections"
 	defaultIndex, err := bleve.Open(indexDirRoot + "/" + indexDefault)
 
 	if err != nil {
@@ -96,7 +96,12 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 func (s *Search) IndexBlock(block *Block) {
 	var jsonDoc map[string]interface{}
 
-	// TODO: Group by the collection name and use bulk indexing
+	// using batch index for better performance
+	indexBatches := make(map[string]*bleve.Batch)
+	for collection, index := range s.blockchainIndices {
+		indexBatches[collection] = index.NewBatch()
+	}
+
 	for _, tx := range block.transactions {
 		// do not index the doc where there is no index exists for it
 		if nil == s.blockchainIndices[tx.Collection] {
@@ -119,7 +124,11 @@ func (s *Search) IndexBlock(block *Block) {
 		jsonDoc["_id"] = fmt.Sprintf("%x", tx.ID)
 		jsonDoc["_permittedAddresses"] = tx.PermittedAddresses
 
-		s.blockchainIndices[tx.Collection].Index(string(append(append(block.Hash, []byte("_")...), tx.ID...)), jsonDoc)
+		indexBatches[tx.Collection].Index(string(append(append(block.Hash, []byte("_")...), tx.ID...)), jsonDoc)
+	}
+
+	for collection, batch := range indexBatches {
+		s.blockchainIndices[collection].Batch(batch)
 	}
 }
 
@@ -259,7 +268,7 @@ func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
 	indexMapping.StoreDynamic = false
 	indexMapping.IndexDynamic = false
 
-	collectionIndex, err := bleve.NewUsing(s.indexDirRoot+filepath.Dir("/")+documentMapping.Collection, indexMapping, bleve.Config.DefaultIndexType, goleveldb.Name, nil)
+	collectionIndex, err := bleve.NewUsing(s.indexDirRoot+filepath.Dir("/")+documentMapping.Collection, indexMapping, scorch.Name, scorch.Name, nil)
 
 	if err != nil {
 		log.WithFields(log.Fields{

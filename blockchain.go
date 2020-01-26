@@ -52,11 +52,12 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	newBlock := NewBlock(txs, lastHash, uint64(lastHeightInt+1))
 	bc.tip, err = newBlock.Persist(bc.db)
 
-	start := time.Now().Unix()
+	start := time.Now().UnixNano()
+	log.Debug("number of transactions in the block:" + strconv.FormatInt(int64(newBlock.TotalTransactions), 10))
 	log.Debug("start indexing the block:" + strconv.FormatInt(start, 10))
 	bc.search.IndexBlock(newBlock)
-	end := time.Now().Unix()
-	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt(end-start, 10))
+	end := time.Now().UnixNano()
+	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")
 
 	if err != nil {
 		log.Error(err)
