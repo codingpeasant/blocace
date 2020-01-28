@@ -144,6 +144,19 @@ class Blocace {
     return putDocRes.data
   }
 
+  // WARNING: this makes the document unverifiable
+  async putDocumentBulk(documents, collection) {
+    const putDocRes = await axios.request({
+      url: this.protocol + '://' + this.hostname + ':' + this.port + '/bulk/' + collection,
+      method: 'post',
+      timeout: httpRequestTimeout,
+      headers: { 'Authorization': 'Bearer ' + this.token },
+      data: documents
+    })
+
+    return putDocRes.data
+  }
+
   async query(queryPayload, collection) {
     const queryRes = await axios.request({
       url: this.protocol + '://' + this.hostname + ':' + this.port + '/search/' + collection,

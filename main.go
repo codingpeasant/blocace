@@ -183,15 +183,16 @@ func server() {
 	router.Handle("/", httpHandler)
 	router.HandleFunc("/jwt", httpHandler.HandleJWT).Methods("POST", "GET")
 	router.HandleFunc("/jwt/challenge/{address}", httpHandler.JWTChallenge).Methods("GET")
-	router.HandleFunc("/info", httpHandler.HandleInfo).Methods("GET")                                     // user
-	router.HandleFunc("/block/{blockId}", httpHandler.HandleBlockInfo).Methods("GET")                     // user
-	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET")      // user
-	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")            // user
-	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")            // user
-	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")               // admin
-	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                          // user
-	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")              // user
-	router.HandleFunc("/account", httpHandler.AccountRegistration).Methods("POST")                        // admin
+	router.HandleFunc("/info", httpHandler.HandleInfo).Methods("GET")                                // user
+	router.HandleFunc("/block/{blockId}", httpHandler.HandleBlockInfo).Methods("GET")                // user
+	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
+	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")       // user
+	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")       // user
+	router.HandleFunc("/bulk/{collection}", httpHandler.handleTransactionBulk).Methods("POST")       // user
+	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")          // admin
+	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                     // user
+	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")         // user
+	router.HandleFunc("/account", httpHandler.AccountRegistration).Methods("POST")
 	router.HandleFunc("/account/{address}", httpHandler.AccountUpdate).Methods("POST")                    // admin
 	router.HandleFunc("/account/{address}", httpHandler.AccountGet).Methods("GET")                        // user
 	router.HandleFunc("/setaccountpermission/{address}", httpHandler.SetAccountReadWrite).Methods("POST") // admin

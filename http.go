@@ -70,6 +70,15 @@ type TransactionCreationResponse struct {
 	TransactionID     string            `json:"transactionID"`
 }
 
+// TransactionBulkCreationResponse has the validation and count information from the server to the HTTP clients
+type TransactionBulkCreationResponse struct {
+	Status            string            `json:"status"`
+	Total             int               `json:"total"`
+	Accepted          int               `json:"accepted"`
+	Dropped           int               `json:"dropped"`
+	FieldErrorMapping map[string]string `json:"fieldErrors"`
+}
+
 func (h HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -225,8 +234,9 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 
 // HandleTransaction put and index new transaction
 // {
-//     "rawDocument": {"id":"10000","message":"Send 10000 BTC to Ivan"},
-//     "signature": "8e0063b76c2aed4982e1b62c713b0a7cf74f2b548b8c032659da65404c3d0b9777b8f8613f3e87e43680ec638949e263658ef5608bad7359e1075e285f49dd8d"
+//     "rawDocument": "{\"id\":\"10001\",\"message\":\"Send 10000 BTC to Ivan\"}",
+//     "signature": "8e0063b76c2aed4982e1b62c713b0a7cf74f2b548b8c032659da65404c3d0b9777b8f8613f3e87e43680ec638949e263658ef5608bad7359e1075e285f49dd8d",
+//     "permittedAddresses" : ["0x07322C5A59047c09e87C284503F64f7FdDD17aBd", "0x931D387731bBbC988B312206c74F77D004D6B84b"]
 // }
 func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) {
 	err := processJWT(r, false)
@@ -295,41 +305,12 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var publicKey []byte
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
-
-		if b == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleTransaction",
-				"address": r.Header.Get("address"),
-			}).Warn("bucket doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-
-		encodedAccount := b.Get([]byte(r.Header.Get("address")))
-
-		if encodedAccount == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleTransaction",
-				"address": r.Header.Get("address"),
-			}).Error("account doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-		publicKey, err = hex.DecodeString(DeserializeAccount(encodedAccount).PublicKey)
-
-		if err != nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleTransaction",
-				"address": r.Header.Get("address"),
-			}).Error("hex.DecodeString publicKey: " + err.Error())
-			return err
-		}
-
-		return nil
-	})
-
+	publicKey, err = hex.DecodeString(account.PublicKey)
 	if err != nil {
-		http.Error(w, "{\"message\": \"couldn't find the account: "+err.Error()+"\"}", 404)
+		log.WithFields(log.Fields{
+			"route":   "HandleTransaction",
+			"address": r.Header.Get("address"),
+		}).Error("hex.DecodeString publicKey: " + err.Error())
 		return
 	}
 
@@ -368,6 +349,89 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	}
 
 	mustEncode(w, TransactionCreationResponse{Status: "ok", IsValidSignature: true, TransactionID: fmt.Sprintf("%x", txID)})
+}
+
+// handleTransactionBulk put and index new transactions in bulk. Transactions payload don't need signatures.
+// [
+//     {
+//         "id": "10001",
+//         "message": "Send 1 BTC to Ivan"
+//     },
+//     {
+//         "id": "10002",
+//         "message": "Send 2 BTC to Ivan"
+//     },
+//     {
+//         "id": "10003",
+//         "message": "Send 3 BTC to Ivan"
+//     },
+//     {
+//         "id": "10004",
+//         "message": "Send 4 BTC to Ivan"
+//     }
+// ]
+// WARNING: this makes the document unverifiable
+func (h HTTPHandler) handleTransactionBulk(w http.ResponseWriter, r *http.Request) {
+	// find the index to operate on
+	vars := mux.Vars(r)
+	indexName := vars["collection"]
+
+	if nil == h.bc.search.blockchainIndices[indexName] {
+		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
+		return
+	}
+
+	// read the request body
+	transactionBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "{\"message\": \"error reading the request body: "+err.Error()+"\"}", 400)
+		return
+	}
+
+	// parse the request
+	var jsonDocs []map[string]interface{}
+	err = json.Unmarshal(transactionBody, &jsonDocs)
+	if err != nil {
+		http.Error(w, "{\"message\": \"error parsing the payload: "+err.Error()+"\"}", 400)
+		return
+	}
+
+	accepted := 0
+	for _, transaction := range jsonDocs {
+		jsonBytes, err := json.Marshal(transaction)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"route":   "HandleTransaction",
+				"address": r.Header.Get("address"),
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			mustEncode(w, TransactionBulkCreationResponse{Status: "cannot parse json payload", Total: len(jsonDocs), Accepted: accepted, Dropped: (len(jsonDocs) - accepted)})
+			return
+		}
+
+		fieldErrorMapping, err := h.r.PutWithoutSignature(jsonBytes, indexName, nil)
+
+		if err != nil {
+			log.WithFields(log.Fields{
+				"route":   "HandleTransaction",
+				"address": r.Header.Get("address"),
+			}).Error(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			mustEncode(w, TransactionBulkCreationResponse{Status: err.Error(), Total: len(jsonDocs), Accepted: accepted, Dropped: (len(jsonDocs) - accepted)})
+			return
+		}
+
+		if fieldErrorMapping != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			mustEncode(w, TransactionBulkCreationResponse{Status: "field validation failed", Total: len(jsonDocs), Accepted: accepted, Dropped: (len(jsonDocs) - accepted), FieldErrorMapping: fieldErrorMapping})
+			return
+		}
+		accepted++
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+	mustEncode(w, TransactionBulkCreationResponse{Status: "ok", Total: len(jsonDocs), Accepted: accepted, Dropped: (len(jsonDocs) - accepted)})
 }
 
 // AccountRegistration register the account information
@@ -940,15 +1004,21 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var publicKey *ecdsa.PublicKey
-			if publicKey, err = crypto.UnmarshalPubkey(tx.PubKey); err != nil {
-				log.WithFields(log.Fields{
-					"route":   "HandleSearch",
-					"address": r.Header.Get("address"),
-				}).Errorf("error unmarshal public key bytes: ", err.Error())
-				return err
+			var transactionAddress string
+			if tx.PubKey != nil {
+				if publicKey, err = crypto.UnmarshalPubkey(tx.PubKey); err != nil {
+					log.WithFields(log.Fields{
+						"route":   "HandleSearch",
+						"address": r.Header.Get("address"),
+					}).Errorf("error unmarshal public key bytes: ", err.Error())
+					return err
+				}
+				transactionAddress = crypto.PubkeyToAddress(*publicKey).String()
+			} else {
+				transactionAddress = ""
 			}
 
-			hits = append(hits, Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: crypto.PubkeyToAddress(*publicKey).String()})
+			hits = append(hits, Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
 
 			return nil
 		})
@@ -960,7 +1030,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 // HandleJWT checks the credentials and return corresponding JWT
 // {
 // 	"address": "0x07322C5A59047c09e87C284503F64f7FdDD17aBd",
-// 	"signature": "6b2064ddf73f7b96559ecae424b3b657d1daf62078305e92af991c22e04808d476e8161ec7be58324b662042965a9935de8fb697eb3df7afad5d1885f129f666",
+// 	"signature": "6b2064ddf73f7b96559ecae424b3b657d1daf62078305e92af991c22e04808d476e8161ec7be58324b662042965a9935de8fb697eb3df7afad5d1885f129f666"
 // }
 func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 	// read the request body

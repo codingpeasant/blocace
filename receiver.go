@@ -39,6 +39,22 @@ func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signatu
 	return true, nil, newTx.ID, nil
 }
 
+// PutWithoutSignature a transaction in JSON format to a collection. Returns fieldErrorMapping, transationId, error
+// WARNING: this makes the document unverifiable
+func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permittedAddresses []string) (map[string]string, error) {
+	fieldErrorMapping, err := r.checkMapping(rawData, collection)
+	if err != nil {
+		return nil, err
+	} else if fieldErrorMapping != nil {
+		return fieldErrorMapping, err
+	}
+
+	newTx := NewTransaction(rawData, collection, nil, nil, permittedAddresses)
+	r.transactionsBuffer.Add(newTx)
+
+	return nil, nil
+}
+
 func (r *Receiver) generateBlock() {
 	var candidateTxs []*Transaction
 

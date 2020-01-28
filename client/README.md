@@ -15,6 +15,7 @@
 * `async getAccount(address)` - Get the account's information
 * `async createCollection(collectionPayload)` - Create an new collection with schema
 * `async signAndPutDocument(document, collection)` - Write and digitally sign a JSON document to add to a collection
+* `async putDocumentBulk(documents, collection)` - Write a bulk of JSON documents in a single HTTP request to a collection. WARNING: this makes the documents unverifiable
 * `async query(queryPayload, collection)` - Query the documents from Blocase with a query against a collection
 * `async verifyTransaction(blockId, transationId)` - Obtain a copy of block [Merkle Tree](https://en.wikipedia.org/wiki/Merkle_tree) and verify if the target document adding transaction has been included in the blockchain
 * `async getBlockInfo(blockId)` - Get the information of a target block
