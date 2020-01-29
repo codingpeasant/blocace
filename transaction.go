@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	uuid "github.com/satori/go.uuid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -25,15 +26,8 @@ type Transaction struct {
 
 // SetID sets ID of a transaction based on the raw data and timestamp
 func (tx *Transaction) SetID() {
-	txHash := sha256.Sum256(bytes.Join(
-		[][]byte{
-			tx.RawData,
-			IntToHex(tx.AcceptedTimestamp),
-		},
-		[]byte{},
-	))
-
-	tx.ID = txHash[:]
+	idHash := sha256.Sum256(uuid.NewV4().Bytes())
+	tx.ID = idHash[:]
 }
 
 // Serialize serializes the transaction

@@ -84,7 +84,7 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 
 	encodedBlock := b.serialize()
 
-	// A DB transaction to gurantee the block and [transaction] is an atom operation
+	// A DB transaction to guarantee the block and [transaction] is an atom operation
 	err = db.Update(func(dbtx *bolt.Tx) error {
 		bBucket := dbtx.Bucket([]byte(blocksBucket))
 		txBucket := dbtx.Bucket([]byte(transactionsBucket))
@@ -96,7 +96,7 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 		}
 
 		for _, tx := range b.transactions {
-			// key format: blockHash_transactionHash
+			// key format: blockHash_transactionId
 			err := txBucket.Put(append(append(b.Hash, []byte("_")...), tx.ID...), tx.Serialize())
 			if err != nil {
 				log.Panic(err)

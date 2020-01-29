@@ -62,7 +62,6 @@ func (r *Receiver) generateBlock() {
 		candidateTxs = append(candidateTxs, r.transactionsBuffer.Remove())
 	}
 
-	candidateTxs = removeDuplicateTransactions(candidateTxs)
 	if len(candidateTxs) > 0 {
 		r.blockchain.AddBlock(candidateTxs)
 	}

@@ -38,22 +38,6 @@ func isValidSig(rawData []byte, pubKey []byte, signature []byte) bool {
 	return true
 }
 
-// removeDuplicateTransactions doesn't allow multiple txs with the same ID in the same block
-func removeDuplicateTransactions(txs []*Transaction) []*Transaction {
-	encountered := map[string]*Transaction{}
-	result := []*Transaction{}
-
-	for _, tx := range txs {
-		encountered[string(tx.ID)] = tx
-	}
-
-	for _, tx := range encountered {
-		result = append(result, tx)
-	}
-	// Return the new slice.
-	return result
-}
-
 func isValidAddress(address string) bool {
 	r, _ := regexp.Compile("0x[a-fA-F0-9]{40}")
 	return r.MatchString(address)
