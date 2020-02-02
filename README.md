@@ -14,7 +14,7 @@ __Blocace__ is a distributed document database powered by the blockchain technol
 ### Compile on Linux/macOS/Windows
 > Prerequisite: Go version: 1.12 or later; GCC 5.1 or later.
 > 
-> Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike.
+> Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike. macOS may need to install [Xcode Command Line Tools](https://www.ics.uci.edu/~pattis/common/handouts/macmingweclipse/allexperimental/macxcodecommandlinetools.html).
 
 Build and run with Go Modules
 ```bash

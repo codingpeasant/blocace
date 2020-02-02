@@ -1,4 +1,4 @@
-package main
+package blocace
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -52,7 +53,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "Blocace Community Edition"
 	app.Version = version
-	app.Copyright = "(c) 2019 Blocace Labs"
+	app.Copyright = "(c) 2020 Blocace Labs"
 	app.Usage = "The Generic Blockchain Solution"
 	app.HelpName = "blocace"
 
@@ -76,7 +77,7 @@ func main() {
 				},
 				cli.IntFlag{
 					Name:        "maxtx, m",
-					Value:       1024,
+					Value:       2048,
 					Usage:       "the max transactions in a block",
 					Destination: &maxTxsPerBlock,
 				},
@@ -188,7 +189,7 @@ func server() {
 	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
 	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")       // user
 	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")       // user
-	router.HandleFunc("/bulk/{collection}", httpHandler.handleTransactionBulk).Methods("POST")       // user
+	router.HandleFunc("/bulk/{collection}", httpHandler.handleTransactionBulk).Methods("POST")       // everyone
 	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")          // admin
 	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                     // user
 	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")         // user
@@ -197,7 +198,9 @@ func server() {
 	router.HandleFunc("/account/{address}", httpHandler.AccountGet).Methods("GET")                        // user
 	router.HandleFunc("/setaccountpermission/{address}", httpHandler.SetAccountReadWrite).Methods("POST") // admin
 
-	server := &http.Server{Addr: ":" + port, Handler: router}
+	handler := cors.Default().Handler(router)
+
+	server := &http.Server{Addr: ":" + port, Handler: handler}
 
 	go func() {
 		if err := server.ListenAndServe(); err == nil {
