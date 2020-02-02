@@ -1,6 +1,6 @@
-module github.com/blocace/blocace
+module github.com/codingpeasant/blocace
 
-go 1.12
+go 1.13
 
 require (
 	github.com/RoaringBitmap/roaring v0.4.21 // indirect

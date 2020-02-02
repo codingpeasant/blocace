@@ -1,4 +1,4 @@
-package blocace
+package main
 
 import (
 	"errors"
