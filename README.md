@@ -48,26 +48,10 @@ go build -ldflags="-s -w -X main.version=0.0.1"
 ./blocace server
 ```
 ### Download for Linux/macOS/Windows
-If you'd like to try Blocace directly, here is the links and the binary's MD5 checksum
-#### Linux
-```
-https://blocace.s3.us-east-2.amazonaws.com/linux/blocace-v0.0.1
-MD5: 5e2c078ed359ecc0f38980bc759d6ac9
-```
-#### macOS
-```
-https://blocace.s3.us-east-2.amazonaws.com/macos/blocace-v0.0.1
-MD5: 6a27775d477bc89097f9a927b58fdf69
-```
-#### Windows
-```
-https://blocace.s3.us-east-2.amazonaws.com/windows/blocace-v0.0.1.exe
-MD5: 2dd5f6b5bb5c66a5c71254faf50081a4
-```
-
+If you'd like to try Blocace directly, please navigate to the [releases](https://github.com/codingpeasant/blocace/releases)
 
 ## Docs
-Checkout [Blocace In 10 Minutes](https://blocace.com/docs/#/)
+Checkout [Blocace In 10 Minutes](https://blocace.com/docs/#/) and [Blocace APIs Reference](https://blocace.com/docs/#/?id=usage-reference)
 
 ## License
 Blocace is licensed as [Apache 2.0](https://github.com/codingpeasant/blocace/blob/master/LICENSE).

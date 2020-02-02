@@ -283,9 +283,6 @@ Blocace client is able to get adminstration information about a given block. In 
 ### You're all set!
 
 # Usage Reference
-## Blocace Javascript API Reference
-To develop DAPP talking to Blocace server, we create a handy blocace javascript client at [blocace-client](https://www.npmjs.com/package/blocace). Check out [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) for the full usage of the client lib.
-
 ## Blocace CLI reference
 ### Server CLI
 The major command to start a Blocace instance.
@@ -371,42 +368,41 @@ WARNING: THIS PRIVATE KEY ONLY SHOWS ONCE. PLEASE SAVE IT NOW AND KEEP IT SAFE. 
 ####################
 ```
 ## Blocace web API reference
-### The current available API are:
-`static create(hostname, port, protocol)` - Generate random Blocace client key pair and initialize the client class
+### `static create(hostname, port, protocol)` - Generate random Blocace client key pair and initialize the client class
 
 Example:
 ```
 var blocace = Blocace.create('localhost', '6899', 'http)
 ```
-`static createFromPrivateKey(privKey, hostname, port, protocol)` - Use an existing client private key and initialize the client class
+### `static createFromPrivateKey(privKey, hostname, port, protocol)` - Use an existing client private key and initialize the client class
 
 Example:
 ```
 var blocace = Blocace.createFromPrivateKey('81244df62f43a163a2f4a4894ef531ba1a493b921fb3bbaabdb2222e632f7734)
 ```
 
-`encryptPrivateKey(password)` - Get the encrypted private key. The return value is a concatenation of the salt, IV and the cipher text of the private key
+### `encryptPrivateKey(password)` - Get the encrypted private key. The return value is a concatenation of the salt, IV and the cipher text of the private key
 
 Example:
 ```
 var encryptPrivKey = blocace.encryptPrivateKey('123456')
 ```
 
-`static decryptPrivateKey(encrypted, password)` - Decrypt the private key from the encryption string, which is a concatenation of the salt, IV and the cipher text of the private key
+### `static decryptPrivateKey(encrypted, password)` - Decrypt the private key from the encryption string, which is a concatenation of the salt, IV and the cipher text of the private key
 
 Example:
 ```
 var decryptPrivKey = Blocace.decryptPrivateKey(encryptPrivKey, '123456')
 ```
 
-`static verifySignature(rawDocument, signature, address)` - Verify if the signature of a document matches the claimed address (aka. public key). This API can be used to verify the integrity of a document
+### `static verifySignature(rawDocument, signature, address)` - Verify if the signature of a document matches the claimed address (aka. public key). This API can be used to verify the integrity of a document
 
 Example:
 ```
 var isValidSignature = Blocace.verifySignature(queryRes.hits[0]._source, queryRes.hits[0]._signature, blocaceUser.wallet.address)
 ```
 
-`async createAccount(accountPayload)` - Create a new account
+### `async createAccount(accountPayload)` - Create a new account
 
 Example:
 ```
@@ -425,7 +421,7 @@ const accountPayload = {
 const accountRes = await Blocace.createAccount(accountPayload, 'http', 'localhost', '6899')
 ```
 
-`async updateAccount(accountPayload, address)` - Update the account
+### `async updateAccount(accountPayload, address)` - Update the account
 
 Example:
 ```
@@ -448,7 +444,7 @@ Output:
 ```
 {"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":null,"collectionsWrite":null,"company":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
 ```
-`async setAccountReadWrite(permissionPayload, address)` - Grand collection level read/write permission
+### `async setAccountReadWrite(permissionPayload, address)` - Grand collection level read/write permission
 
 Example:
 ```
@@ -458,13 +454,13 @@ Output:
 ```
 {"message":"account permission updated","address":"0xf55486314B0C4F032d603B636327ed5c82218688"}
 ```
-`async getChallenge()` - A challenge issued from Blocace server for the client to authenticate
+### `async getChallenge()` - A challenge issued from Blocace server for the client to authenticate
 
 Example:
 ```
 const challengeResponse = await this.getChallenge()
 ```
-`async getJWT()` - Get the challenge, give back the solution and obtain the JWT ([JSON Web Token](https://jwt.io/))
+### `async getJWT()` - Get the challenge, give back the solution and obtain the JWT ([JSON Web Token](https://jwt.io/))
 
 Example:
 ```
@@ -474,7 +470,7 @@ Output:
 ```
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlTmFtZSI6ImFkbWluIiwiYWRkcmVzcyI6IjB4RDE2MjFGNzZiMzMzOWIyRUFENTA2ODU5ZGRFRWRhRkZBMWYxOGM1MiIsImF1ZCI6ImJsb2NhY2UgdXNlciIsImV4cCI6MTU4MDM2MTAyOCwiaWF0IjoxNTgwMzYwNDI4LCJpc3MiOiJibG9jYWNlIn0.rKqkdaD-k8HmUW-z0W9WI41SUs7_sqSFdjGePdrYtKQ
 ```
-`async getAccount(address)` - Get the account's information
+### `async getAccount(address)` - Get the account's information
 
 Example:
 ```
@@ -497,7 +493,7 @@ Output:
 	"roleName": "user"
 }
 ```
-`async createCollection(collectionPayload)` - Create an new collection with schema
+### `async createCollection(collectionPayload)` - Create an new collection with schema
 
 Example:
 ```
@@ -507,7 +503,7 @@ Output:
 ```
 {"message":"collection new1 created"}
 ```
-`async signAndPutDocument(document, collection)` - Write and digitally sign a JSON document to add to a collection
+### `async signAndPutDocument(document, collection)` - Write and digitally sign a JSON document to add to a collection
 
 Example:
 ```
@@ -546,7 +542,7 @@ Output:
 ```
 {"status":"ok","fieldErrors":null,"isValidSignature":true,"transactionID":"8a545086ebfac8d7f38c08ceb618f2afe35850e9ba9890784abe89288f42e7bd"}
 ```
-`async putDocumentBulk(documents, collection)` - Write a bulk of JSON documents in a single HTTP request to a collection. WARNING: this makes the documents unverifiable
+### `async putDocumentBulk(documents, collection)` - Write a bulk of JSON documents in a single HTTP request to a collection. WARNING: this makes the documents unverifiable
 
 Example:
 ```
@@ -558,7 +554,7 @@ const payload = [
 await blocaceUser.putDocumentBulk(payload, 'new2')
 ```
 
-`async query(queryPayload, collection)` - Query the documents from Blocase with a query against a collection. Check out [Blevesearch Query](https://blevesearch.com/docs/Query/) for the query DSL.
+### `async query(queryPayload, collection)` - Query the documents from Blocase with a query against a collection. Check out [Blevesearch Query](https://blevesearch.com/docs/Query/) for the query DSL.
 
 Example:
 ```
@@ -606,14 +602,14 @@ Output:
 	}]
 }
 ```
-`async verifyTransaction(blockId, transationId)` - Obtain a copy of block [Merkle Tree](https://en.wikipedia.org/wiki/Merkle_tree) and verify if the target document adding transaction has been included in the blockchain
+### `async verifyTransaction(blockId, transationId)` - Obtain a copy of block [Merkle Tree](https://en.wikipedia.org/wiki/Merkle_tree) and verify if the target document adding transaction has been included in the blockchain
 
 Example:
 ```
 const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockId, queryRes.hits[0]._id)
 ```
 
-`async getBlockInfo(blockId)` - Get the information of a target block
+### `async getBlockInfo(blockId)` - Get the information of a target block
 
 Example:
 ```
@@ -623,7 +619,7 @@ Output:
 ```
 {"blockId":"cfc01dc667753185a5635b33ebbff42b452476f15a4f63fceb210aad68dac3b8","lastBlockId":"47e7023f02c4f762d458e674ce1075666e47cafa93a701b6cb88615c6b4f6dc5","blockHeight":1,"totalTransactions":10}
 ```
-`async getBlockchainInfo()` - Get the information of the whole blockchain
+### `async getBlockchainInfo()` - Get the information of the whole blockchain
 
 Example:
 ```
@@ -633,7 +629,7 @@ Output:
 ```
 {"newestBlockId":"cfc01dc667753185a5635b33ebbff42b452476f15a4f63fceb210aad68dac3b8","lastHeight":1,"totalTransactions":11}
 ```
-`async getCollections()` - Get all the collections in the blockchain
+### `async getCollections()` - Get all the collections in the blockchain
 
 Example:
 ```
@@ -643,7 +639,7 @@ Output:
 ```
 {"message":"ok","collections":["default","new1"]}
 ```
-`async getCollection(collectionName)` - Get the information of a certain collection
+### `async getCollection(collectionName)` - Get the information of a certain collection
 
 Example:
 ```
