@@ -2,6 +2,7 @@
 	<img width="300" src="./blocace-full-logo.png" alt="blocace Logo" />
 </a>
 <hr/>
+[![Build Status](https://travis-ci.com/codingpeasant/blocace.svg?branch=master)](https://travis-ci.com/codingpeasant/blocace) [![GoDoc](https://godoc.org/github.com/codingpeasant/blocace?status.svg)](https://godoc.org/github.com/codingpeasant/blocace) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 __Blocace__ is a distributed document database powered by the blockchain technology.
 

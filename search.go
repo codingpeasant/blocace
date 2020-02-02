@@ -113,7 +113,7 @@ func (s *Search) IndexBlock(block *Block) {
 		err := json.Unmarshal(tx.RawData, &jsonDoc)
 
 		if err != nil {
-			log.Error("error indexing tx with ID %x: %s", tx.ID, err)
+			log.Errorf("error indexing tx with ID %x: %s", tx.ID, err)
 		}
 
 		// all searchable system fields

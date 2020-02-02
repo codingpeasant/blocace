@@ -967,7 +967,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleSearch",
 				"address": r.Header.Get("address"),
-			}).Errorf("error validating the query: %s. The query: ", err.Error(), searchRequest.Query)
+			}).Errorf("error validating the query: %s. The query: %s", err.Error(), searchRequest.Query)
 			http.Error(w, "{\"message\": \"error validating the query: "+err.Error()+"\"}", 400)
 			return
 		}
@@ -999,7 +999,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 				log.WithFields(log.Fields{
 					"route":   "HandleSearch",
 					"address": r.Header.Get("address"),
-				}).Errorf("error encoding doc: ", err.Error())
+				}).Error("error encoding doc: ", err.Error())
 				return err
 			}
 
@@ -1010,7 +1010,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 					log.WithFields(log.Fields{
 						"route":   "HandleSearch",
 						"address": r.Header.Get("address"),
-					}).Errorf("error unmarshal public key bytes: ", err.Error())
+					}).Error("error unmarshal public key bytes: ", err.Error())
 					return err
 				}
 				transactionAddress = crypto.PubkeyToAddress(*publicKey).String()
@@ -1213,7 +1213,7 @@ func mustEncode(w io.Writer, i interface{}) {
 	if err := e.Encode(i); err != nil {
 		log.WithFields(log.Fields{
 			"route": "mustEncode",
-		}).Errorf("error encoding response to json: ", err.Error())
+		}).Error("error encoding response to json: ", err.Error())
 	}
 }
 
