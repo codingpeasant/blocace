@@ -145,7 +145,7 @@ JWT (new user): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlTmFtZSI6InVzZXIiLCJ
 
 Update account response: {"message":"account updated","address":"0xf55486314B0C4F032d603B636327ed5c82218688"}
 ```
-Login as the new user and update its own account's email address. Note that the account information is optional and doesn't affect the usage of Blocace
+Login as the new user and update its own account's email address. Note that the account information is just for convenience to track identity and doesn't affect the usage of Blocace
 
 ### Sign and put documents to Blocace and query them
 ```javascript
