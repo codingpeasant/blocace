@@ -1,4 +1,4 @@
-package main
+package blockchain
 
 import (
 	"encoding/json"
@@ -14,13 +14,15 @@ import (
 
 // Receiver represents the front door for the incoming transactions
 type Receiver struct {
-	transactionsBuffer *Queue
-	blockchain         *Blockchain
+	transactionsBuffer     *Queue
+	blockchain             *Blockchain
+	maxTxsPerBlock         int
+	maxTimeToGenerateBlock int
 }
 
 // Put a transaction in JSON format to a collection. Returns isValidSig, fieldErrorMapping, transationId, error
 func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signature []byte, permittedAddresses []string) (bool, map[string]string, []byte, error) {
-	isValidSig := isValidSig(rawData, pubKey, signature)
+	isValidSig := IsValidSig(rawData, pubKey, signature)
 
 	if !isValidSig {
 		return false, nil, nil, nil
@@ -58,7 +60,7 @@ func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permit
 func (r *Receiver) generateBlock() {
 	var candidateTxs []*Transaction
 
-	for i := 0; i < maxTxsPerBlock && r.transactionsBuffer.Length() > 0; i++ {
+	for i := 0; i < r.maxTxsPerBlock && r.transactionsBuffer.Length() > 0; i++ {
 		candidateTxs = append(candidateTxs, r.transactionsBuffer.Remove())
 	}
 
@@ -69,8 +71,8 @@ func (r *Receiver) generateBlock() {
 
 // Monitor creates a thread to monitor the transaction queue and generate block
 func (r *Receiver) Monitor() {
-	ticker := time.NewTicker(time.Duration(maxTimeToGenerateBlock) * time.Millisecond)
-	log.Infof("begin to monitor transactions every %d milliseconds...\n", maxTimeToGenerateBlock)
+	ticker := time.NewTicker(time.Duration(r.maxTimeToGenerateBlock) * time.Millisecond)
+	log.Infof("begin to monitor transactions every %d milliseconds...\n", r.maxTimeToGenerateBlock)
 
 	for t := range ticker.C {
 		if r.transactionsBuffer.Length() > 0 {
@@ -89,8 +91,8 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 	}
 
 	var documentMapping *DocumentMapping
-	err = r.blockchain.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(collectionsBucket))
+	err = r.blockchain.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(CollectionsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -206,6 +208,6 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 }
 
 // NewReceiver creates an instance of Receiver
-func NewReceiver(bc *Blockchain) *Receiver {
-	return &Receiver{transactionsBuffer: NewQueue(), blockchain: bc}
+func NewReceiver(bc *Blockchain, maxTxsPerBlock int, maxTimeToGenerateBlock int) *Receiver {
+	return &Receiver{transactionsBuffer: NewQueue(), blockchain: bc, maxTxsPerBlock: maxTxsPerBlock, maxTimeToGenerateBlock: maxTimeToGenerateBlock}
 }

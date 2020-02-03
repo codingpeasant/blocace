@@ -1,4 +1,4 @@
-package main
+package blockchain
 
 import (
 	"bytes"
@@ -12,6 +12,12 @@ import (
 )
 
 const (
+	BlocksBucket           = "blocks"
+	TransactionsBucket     = "transactions"
+	AccountsBucket         = "accounts"
+	CollectionsBucket      = "collections"
+	genesisCoinbaseRawData = `{"isActive":true,"balance":"$1,608.00","picture":"http://placehold.it/32x32","age":37,"eyeColor":"brown","name":"Rosa Sherman","gender":"male","company":"STELAECOR","email":"rosasherman@stelaecor.com","phone":"+1 (907) 581-2115","address":"546 Meserole Street, Clara, New Jersey, 5471","about":"Reprehenderit eu pariatur proident id voluptate eu pariatur minim ut magna aliquip esse. Eu et quis sint quis et anim duis non tempor esse minim voluptate fugiat. Cillum qui nulla aute ullamco.\r\n","registered":"2018-01-15T05:53:18 +05:00","latitude":-55.183323,"longitude":-63.077504,"tags":["laborum","ex","officia","nisi","adipisicing","commodo","incididunt"],"friends":[{"id":0,"name":"Franks Harper"},{"id":1,"name":"Bettye Nash"},{"id":2,"name":"Mai Buck"}],"greeting":"Hello, Rosa Sherman! You have 3 unread messages.","favoriteFruit":"strawberry"}`
+
 	letterBytes   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 	letterIdxBits = 6                    // 6 bits to represent a letter index
 	letterIdxMask = 1<<letterIdxBits - 1 // All 1-bits, as many as letterIdxBits
@@ -30,7 +36,7 @@ func IntToHex(num int64) []byte {
 }
 
 // isValidSig verifies if the rawData is a signed correctly
-func isValidSig(rawData []byte, pubKey []byte, signature []byte) bool {
+func IsValidSig(rawData []byte, pubKey []byte, signature []byte) bool {
 	hash := crypto.Keccak256(rawData)
 	if !crypto.VerifySignature(pubKey, hash[:], signature[:64]) {
 		return false
@@ -38,7 +44,7 @@ func isValidSig(rawData []byte, pubKey []byte, signature []byte) bool {
 	return true
 }
 
-func isValidAddress(address string) bool {
+func IsValidAddress(address string) bool {
 	r, _ := regexp.Compile("0x[a-fA-F0-9]{40}")
 	return r.MatchString(address)
 }

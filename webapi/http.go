@@ -1,4 +1,4 @@
-package main
+package webapi
 
 import (
 	"bytes"
@@ -23,12 +23,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
 	validator "gopkg.in/validator.v2"
+
+	"github.com/codingpeasant/blocace/blockchain"
 )
 
 // HTTPHandler encapsulates the essential objects to serve http requests
 type HTTPHandler struct {
-	bc *Blockchain
-	r  *Receiver
+	bc      *blockchain.Blockchain
+	r       *blockchain.Receiver
+	secret  string
+	version string
 }
 
 // BlockchainInfo has current status information about the whole blockchain
@@ -48,10 +52,10 @@ type BlockInfo struct {
 
 // SearchResponse determines the data in the HTTP response that the HTTP client gets
 type SearchResponse struct {
-	Collection string              `json:"collection"`
-	Status     *bleve.SearchStatus `json:"status"`
-	Total      uint64              `json:"total_hits"`
-	Hits       []Document          `json:"hits"`
+	Collection string                `json:"collection"`
+	Status     *bleve.SearchStatus   `json:"status"`
+	Total      uint64                `json:"total_hits"`
+	Hits       []blockchain.Document `json:"hits"`
 }
 
 // TransactionPayload defines the data for HTTP clients should provide to add a document to the blockchain
@@ -82,12 +86,12 @@ type TransactionBulkCreationResponse struct {
 func (h HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, "{\"message\": \"Blocace, the generic blockchain for all...\", \"version\": \""+version+"\"}")
+	fmt.Fprintln(w, "{\"message\": \"Blocace, the generic blockchain for all...\", \"version\": \""+h.version+"\"}")
 }
 
 // CollectionMappingCreation handles the creation of the collection (and index mapping)
 func (h *HTTPHandler) CollectionMappingCreation(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, true)
+	err := processJWT(r, true, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -100,7 +104,7 @@ func (h *HTTPHandler) CollectionMappingCreation(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	newIndex, err := h.bc.search.CreateMapping(mappingBody)
+	newIndex, err := h.bc.Search.CreateMapping(mappingBody)
 
 	if err != nil {
 		http.Error(w, "{\"message\": \"could not create the collection: "+err.Error()+"\"}", 400)
@@ -114,7 +118,7 @@ func (h *HTTPHandler) CollectionMappingCreation(w http.ResponseWriter, r *http.R
 
 // CollectionMappingGet returns the collection mapping definition
 func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -124,14 +128,14 @@ func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	indexName := vars["name"]
 
-	if nil == h.bc.search.blockchainIndices[indexName] {
+	if nil == h.bc.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"the collection "+indexName+" doesn't exist\"}", 404)
 		return
 	}
 
-	var indexMapping *DocumentMapping
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(collectionsBucket))
+	var indexMapping *blockchain.DocumentMapping
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.CollectionsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -150,7 +154,7 @@ func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request
 			}).Error("collection doesn't exist")
 			return errors.New("collection doesn't exist")
 		}
-		indexMapping = DeserializeDocumentMapping(encodedIndexMapping)
+		indexMapping = blockchain.DeserializeDocumentMapping(encodedIndexMapping)
 
 		return nil
 	})
@@ -161,8 +165,8 @@ func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request
 	}
 
 	rv := struct {
-		Message string          `json:"message"`
-		Mapping DocumentMapping `json:"mapping"`
+		Message string                     `json:"message"`
+		Mapping blockchain.DocumentMapping `json:"mapping"`
 	}{
 		Message: "ok",
 		Mapping: *indexMapping,
@@ -173,14 +177,14 @@ func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request
 
 // CollectionList returns the all the collection names
 func (h HTTPHandler) CollectionList(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
 	}
 
 	var indexNames []string
-	for name := range h.bc.search.blockchainIndices {
+	for name := range h.bc.Search.BlockchainIndices {
 		indexNames = append(indexNames, name)
 	}
 
@@ -197,7 +201,7 @@ func (h HTTPHandler) CollectionList(w http.ResponseWriter, r *http.Request) {
 
 // HandleInfo returns the basic information of the blockchain
 func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -206,10 +210,10 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 	var lastHeight int
 	var totalTransactionsInt int64
 
-	h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blocksBucket))
-		encodedBlock := b.Get(h.bc.tip)
-		block := DeserializeBlock(encodedBlock)
+	h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
+		encodedBlock := b.Get(h.bc.Tip)
+		block := blockchain.DeserializeBlock(encodedBlock)
 		lastHeight = int(block.Height)
 
 		totalTransactions := b.Get([]byte("t"))
@@ -218,7 +222,7 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	blockchainInfoJSON, err := json.Marshal(BlockchainInfo{NewestBlockID: fmt.Sprintf("%x", h.bc.tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt})
+	blockchainInfoJSON, err := json.Marshal(BlockchainInfo{NewestBlockID: fmt.Sprintf("%x", h.bc.Tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt})
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -239,7 +243,7 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 //     "permittedAddresses" : ["0x07322C5A59047c09e87C284503F64f7FdDD17aBd", "0x931D387731bBbC988B312206c74F77D004D6B84b"]
 // }
 func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -249,16 +253,16 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.search.blockchainIndices[indexName] {
+	if nil == h.bc.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
 
 	// check writing permission
 	address := r.Header.Get("address")
-	var account *Account
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var account *blockchain.Account
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
 				"route":   "HandleTransaction",
@@ -275,7 +279,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 			}).Info("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		return nil
 	})
@@ -351,7 +355,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	mustEncode(w, TransactionCreationResponse{Status: "ok", IsValidSignature: true, TransactionID: fmt.Sprintf("%x", txID)})
 }
 
-// handleTransactionBulk put and index new transactions in bulk. Transactions payload don't need signatures.
+// HandleTransactionBulk put and index new transactions in bulk. Transactions payload don't need signatures.
 // [
 //     {
 //         "id": "10001",
@@ -371,12 +375,12 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 //     }
 // ]
 // WARNING: this makes the document unverifiable
-func (h HTTPHandler) handleTransactionBulk(w http.ResponseWriter, r *http.Request) {
+func (h HTTPHandler) HandleTransactionBulk(w http.ResponseWriter, r *http.Request) {
 	// find the index to operate on
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.search.blockchainIndices[indexName] {
+	if nil == h.bc.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
@@ -461,7 +465,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 	}
 
 	// parse the request
-	var account Account
+	var account blockchain.Account
 	if err = json.Unmarshal(requestBody, &account); err != nil {
 		http.Error(w, "{\"message\": \"error parsing the json payload: "+err.Error()+"\"}", 400)
 		return
@@ -488,8 +492,8 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 
 	address := crypto.PubkeyToAddress(*publicKey).String()
 
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -539,7 +543,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 // 	"address": "699 Canton Court, Mulino, South Dakota, 9647"
 // }
 func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -561,7 +565,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse the request
-	var account Account
+	var account blockchain.Account
 	if err = json.Unmarshal(requestBody, &account); err != nil {
 		http.Error(w, "{\"message\": \"error parsing the json payload: "+err.Error()+"\"}", 400)
 		return
@@ -572,9 +576,9 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var oldAccount *Account
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var oldAccount *blockchain.Account
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
 				"route":   "AccountUpdate",
@@ -591,7 +595,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		oldAccount = DeserializeAccount(encodedAccount)
+		oldAccount = blockchain.DeserializeAccount(encodedAccount)
 
 		return nil
 	})
@@ -616,7 +620,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 
 // AccountGet returns an account's information for a given address
 func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -625,15 +629,15 @@ func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	address := vars["address"]
 
-	if !isValidAddress(address) {
+	if !blockchain.IsValidAddress(address) {
 		http.Error(w, "{\"message\": \"not a valid address\"}", 400)
 		return
 	}
 
-	var account *Account
+	var account *blockchain.Account
 
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -652,7 +656,7 @@ func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		return nil
 	})
@@ -671,7 +675,7 @@ func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
 // 	"collectionsReadOverride": ["default", "collection2"]
 // }
 func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, true)
+	err := processJWT(r, true, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -680,7 +684,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 	vars := mux.Vars(r)
 	address := vars["address"]
 
-	if !isValidAddress(address) {
+	if !blockchain.IsValidAddress(address) {
 		http.Error(w, "{\"message\": \"not a valid address\"}", 400)
 		return
 	}
@@ -693,15 +697,15 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 	}
 
 	// parse the request
-	var role Role
+	var role blockchain.Role
 	if err = json.Unmarshal(requestBody, &role); err != nil {
 		http.Error(w, "{\"message\": \"error parsing the json payload: "+err.Error()+"\"}", 400)
 		return
 	}
 
-	var account *Account
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var account *blockchain.Account
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -719,7 +723,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		return nil
 	})
@@ -745,7 +749,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 
 // HandleBlockInfo returns an account's information for a given address
 func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -760,10 +764,10 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var block *Block
+	var block *blockchain.Block
 
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blocksBucket))
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -782,8 +786,7 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 			}).Error("block doesn't exist")
 			return errors.New("block doesn't exist")
 		}
-		block = DeserializeBlock(encodedBlock)
-
+		block = blockchain.DeserializeBlock(encodedBlock)
 		return nil
 	})
 
@@ -799,7 +802,7 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 
 // HandleMerklePath returns the necessary transaction hashes for clients to verify if a transaction has been included in the block
 func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -815,10 +818,10 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var block *Block
+	var block *blockchain.Block
 
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blocksBucket))
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -837,7 +840,7 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 			}).Error("block doesn't exist")
 			return errors.New("block doesn't exist")
 		}
-		block = DeserializeBlock(encodedBlock)
+		block = blockchain.DeserializeBlock(encodedBlock)
 
 		return nil
 	})
@@ -847,13 +850,13 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.bc.db.View(func(dbtx *bolt.Tx) error {
+	h.bc.Db.View(func(dbtx *bolt.Tx) error {
 		// Assume bucket exists and has keys
-		c := dbtx.Bucket([]byte(transactionsBucket)).Cursor()
+		c := dbtx.Bucket([]byte(blockchain.TransactionsBucket)).Cursor()
 
 		prefix := block.Hash
 		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
-			block.transactions = append(block.transactions, DeserializeTransaction(v))
+			block.Transactions = append(block.Transactions, blockchain.DeserializeTransaction(v))
 		}
 
 		return nil
@@ -895,7 +898,7 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 // 	}
 // }
 func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
-	err := processJWT(r, false)
+	err := processJWT(r, false, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
 		return
@@ -905,7 +908,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.search.blockchainIndices[indexName] {
+	if nil == h.bc.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
@@ -927,9 +930,9 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	// check read overriding permission
 	address := r.Header.Get("address")
-	var account *Account
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var account *blockchain.Account
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
 				"route":   "HandleSearch",
@@ -946,7 +949,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		return nil
 	})
@@ -975,7 +978,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	searchRequest.Explain = false
 	// execute the query
-	searchResponse, err := h.bc.search.blockchainIndices[indexName].Search(&searchRequest)
+	searchResponse, err := h.bc.Search.BlockchainIndices[indexName].Search(&searchRequest)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"route":   "HandleSearch",
@@ -985,15 +988,15 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hits := []Document{}
+	hits := []blockchain.Document{}
 	for _, hit := range searchResponse.Hits {
-		h.bc.db.View(func(dbtx *bolt.Tx) error {
+		h.bc.Db.View(func(dbtx *bolt.Tx) error {
 			// Assume bucket exists and has keys
-			b := dbtx.Bucket([]byte(transactionsBucket))
+			b := dbtx.Bucket([]byte(blockchain.TransactionsBucket))
 
 			v := b.Get([]byte(hit.ID))
 
-			tx := DeserializeTransaction(v)
+			tx := blockchain.DeserializeTransaction(v)
 
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -1018,7 +1021,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 				transactionAddress = ""
 			}
 
-			hits = append(hits, Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
+			hits = append(hits, blockchain.Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
 
 			return nil
 		})
@@ -1048,9 +1051,9 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var account *Account
-	err = h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var account *blockchain.Account
+	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -1069,7 +1072,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		if account == nil {
 			log.WithFields(log.Fields{
@@ -1104,13 +1107,13 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isValidSig := isValidSig([]byte(account.ChallengeWord), publicKey, signatureBytes)
+	isValidSig := blockchain.IsValidSig([]byte(account.ChallengeWord), publicKey, signatureBytes)
 	if !isValidSig {
 		http.Error(w, "{\"message\": \"signature invalid\"}", 400)
 		return
 	}
 
-	token, err := issueToken(authPayload.Address, account.Role)
+	token, err := issueToken(authPayload.Address, account.Role, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \"couldn't issue jwt: "+err.Error()+"\"}", 500)
 		return
@@ -1137,7 +1140,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	address := vars["address"]
 
-	if !isValidAddress(address) {
+	if !blockchain.IsValidAddress(address) {
 		http.Error(w, "{\"message\": \"not a valid address\"}", 400)
 		log.WithFields(log.Fields{
 			"route":   "JWTChallenge",
@@ -1146,9 +1149,9 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var account *Account
-	err := h.bc.db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(accountsBucket))
+	var account *blockchain.Account
+	err := h.bc.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -1167,7 +1170,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 			}).Error("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
-		account = DeserializeAccount(encodedAccount)
+		account = blockchain.DeserializeAccount(encodedAccount)
 
 		if account == nil {
 			log.WithFields(log.Fields{
@@ -1185,7 +1188,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	account.ChallengeWord = RandStringBytesMask(64)
+	account.ChallengeWord = blockchain.RandStringBytesMask(64)
 	if err = h.bc.RegisterAccount([]byte(address), *account); err != nil {
 		http.Error(w, "{\"message\": \"error updating the challenge word: "+err.Error()+"\"}", 500)
 		return
@@ -1217,14 +1220,14 @@ func mustEncode(w io.Writer, i interface{}) {
 	}
 }
 
-func processJWT(r *http.Request, requireAdmin bool) error {
+func processJWT(r *http.Request, requireAdmin bool, secret string) error {
 	tokenString := r.Header.Get("Authorization")
 	if len(tokenString) == 0 {
 		return errors.New("missing authorization header")
 	}
 
 	tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
-	claims, err := verifyToken(tokenString)
+	claims, err := verifyToken(tokenString, secret)
 	if err != nil {
 		return err
 	}
@@ -1243,6 +1246,6 @@ func processJWT(r *http.Request, requireAdmin bool) error {
 }
 
 // NewHTTPHandler create a new instance of HTTPHandler
-func NewHTTPHandler(b *Blockchain, r *Receiver) HTTPHandler {
-	return HTTPHandler{b, r}
+func NewHTTPHandler(b *blockchain.Blockchain, r *blockchain.Receiver, secret string, version string) HTTPHandler {
+	return HTTPHandler{b, r, secret, version}
 }

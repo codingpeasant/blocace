@@ -1,10 +1,13 @@
 # Blocace In 10 Minutes
 > This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
 > System prerequisites:
-> (only when you prefer to compile Blocace server) Go version: 1.12 or later;
-> (only when you prefer to compile Blocace server) GCC 5.1 or later. Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike. macOS may need to install [Xcode Command Line Tools](https://www.ics.uci.edu/~pattis/common/handouts/macmingweclipse/allexperimental/macxcodecommandlinetools.html).
-> [Node.js](https://nodejs.org/)
-> JS libraries:
+
+* (only when you prefer to compile Blocace server) Go version: 1.12 or later;
+
+* (only when you prefer to compile Blocace server) GCC 5.1 or later. Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike. macOS may need to install [Xcode Command Line Tools](https://www.ics.uci.edu/~pattis/common/handouts/macmingweclipse/allexperimental/macxcodecommandlinetools.html).
+* [Node.js](https://nodejs.org/)
+
+* JS libraries:
 
 ```javascript
 {

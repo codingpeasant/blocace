@@ -1,4 +1,4 @@
-package main
+package blockchain
 
 import (
 	"bytes"
@@ -19,17 +19,21 @@ type Block struct {
 	Height            uint64
 	Hash              []byte
 	TotalTransactions int
-	transactions      []*Transaction // don't encode transactions
+	Transactions      []*Transaction
 }
 
 // Serialize serializes the block
 func (b *Block) serialize() []byte {
 	var result bytes.Buffer
 	encoder := gob.NewEncoder(&result)
+	transactions := b.Transactions
+	b.Transactions = nil // don't encode transactions
 	err := encoder.Encode(b)
 	if err != nil {
 		log.Error(err)
 	}
+
+	b.Transactions = transactions
 
 	return result.Bytes()
 }
@@ -52,7 +56,7 @@ func (b *Block) SetHash() []byte {
 func (b *Block) GetMerkleTree() *MerkleTree {
 	var txHashes [][]byte
 
-	for _, tx := range b.transactions {
+	for _, tx := range b.Transactions {
 		txHashes = append(txHashes, tx.ID)
 	}
 	return NewMerkleTree(txHashes)
@@ -64,7 +68,7 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 	var currentTxTotalInt int64
 
 	err := db.View(func(dbtx *bolt.Tx) error {
-		bBucket := dbtx.Bucket([]byte(blocksBucket))
+		bBucket := dbtx.Bucket([]byte(BlocksBucket))
 		currentTxTotal = bBucket.Get([]byte("t"))
 
 		return nil
@@ -86,8 +90,8 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 
 	// A DB transaction to guarantee the block and [transaction] is an atom operation
 	err = db.Update(func(dbtx *bolt.Tx) error {
-		bBucket := dbtx.Bucket([]byte(blocksBucket))
-		txBucket := dbtx.Bucket([]byte(transactionsBucket))
+		bBucket := dbtx.Bucket([]byte(BlocksBucket))
+		txBucket := dbtx.Bucket([]byte(TransactionsBucket))
 
 		err := bBucket.Put(b.Hash, encodedBlock)
 
@@ -95,7 +99,7 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 			log.Panic(err)
 		}
 
-		for _, tx := range b.transactions {
+		for _, tx := range b.Transactions {
 			// key format: blockHash_transactionId
 			err := txBucket.Put(append(append(b.Hash, []byte("_")...), tx.ID...), tx.Serialize())
 			if err != nil {
@@ -156,8 +160,8 @@ func NewBlock(transactions []*Transaction, prevBlockHash []byte, height uint64) 
 // NewGenesisBlock creates and returns genesis block
 func NewGenesisBlock(coinbase *Transaction, db *bolt.DB) *Block {
 	err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(blocksBucket))
-		_, err = tx.CreateBucket([]byte(transactionsBucket))
+		_, err := tx.CreateBucket([]byte(BlocksBucket))
+		_, err = tx.CreateBucket([]byte(TransactionsBucket))
 
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)

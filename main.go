@@ -16,13 +16,10 @@ import (
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
-)
 
-const blocksBucket = "blocks"
-const transactionsBucket = "transactions"
-const accountsBucket = "accounts"
-const collectionsBucket = "collections"
-const genesisCoinbaseRawData = `{"isActive":true,"balance":"$1,608.00","picture":"http://placehold.it/32x32","age":37,"eyeColor":"brown","name":"Rosa Sherman","gender":"male","company":"STELAECOR","email":"rosasherman@stelaecor.com","phone":"+1 (907) 581-2115","address":"546 Meserole Street, Clara, New Jersey, 5471","about":"Reprehenderit eu pariatur proident id voluptate eu pariatur minim ut magna aliquip esse. Eu et quis sint quis et anim duis non tempor esse minim voluptate fugiat. Cillum qui nulla aute ullamco.\r\n","registered":"2018-01-15T05:53:18 +05:00","latitude":-55.183323,"longitude":-63.077504,"tags":["laborum","ex","officia","nisi","adipisicing","commodo","incididunt"],"friends":[{"id":0,"name":"Franks Harper"},{"id":1,"name":"Bettye Nash"},{"id":2,"name":"Mai Buck"}],"greeting":"Hello, Rosa Sherman! You have 3 unread messages.","favoriteFruit":"strawberry"}`
+	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/webapi"
+)
 
 var secret = "blocace_secret"
 var dataDir string
@@ -158,29 +155,29 @@ func main() {
 }
 
 func server() {
-	var bc *Blockchain
-	var r *Receiver
+	var bc *blockchain.Blockchain
+	var r *blockchain.Receiver
 	var dbFile = dataDir + filepath.Dir("/") + "blockchain.db"
 
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		os.Mkdir(dataDir, os.ModePerm)
 	}
 
-	if dbExists(dbFile) {
+	if blockchain.DbExists(dbFile) {
 		log.Info("db file exists.")
-		bc = NewBlockchain(dbFile)
+		bc = blockchain.NewBlockchain(dbFile, dataDir)
 	} else {
 		log.Info("cannot find the db file. creating new...")
-		bc = CreateBlockchain(dbFile)
-		generateAdminAccount(bc.db)
+		bc = blockchain.CreateBlockchain(dbFile, dataDir)
+		generateAdminAccount(bc.Db)
 	}
 
-	r = NewReceiver(bc)
+	r = blockchain.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
 	go r.Monitor()
 
-	httpHandler := NewHTTPHandler(bc, r)
+	httpHandler := webapi.NewHTTPHandler(bc, r, secret, version)
 	router := mux.NewRouter()
-	router.NotFoundHandler = http.HandlerFunc(ErrorHandler)
+	router.NotFoundHandler = http.HandlerFunc(webapi.ErrorHandler)
 	router.Handle("/", httpHandler)
 	router.HandleFunc("/jwt", httpHandler.HandleJWT).Methods("POST", "GET")
 	router.HandleFunc("/jwt/challenge/{address}", httpHandler.JWTChallenge).Methods("GET")
@@ -189,7 +186,7 @@ func server() {
 	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
 	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")       // user
 	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")       // user
-	router.HandleFunc("/bulk/{collection}", httpHandler.handleTransactionBulk).Methods("POST")       // everyone
+	router.HandleFunc("/bulk/{collection}", httpHandler.HandleTransactionBulk).Methods("POST")       // everyone
 	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")          // admin
 	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                     // user
 	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")         // user
@@ -233,7 +230,7 @@ func server() {
 }
 
 func keygen() {
-	if dbExists(dataDir + filepath.Dir("/") + "blockchain.db") {
+	if blockchain.DbExists(dataDir + filepath.Dir("/") + "blockchain.db") {
 		log.Info("db file exists. generating an admin keypair and registering an account...")
 		db, err := bolt.Open(dataDir+filepath.Dir("/")+"blockchain.db", 0600, nil)
 		if err != nil {
@@ -254,13 +251,13 @@ func generateAdminAccount(db *bolt.DB) {
 	}
 
 	pubKey := privKey.PublicKey
-	account := Account{Role: Role{Name: "admin"}, PublicKey: "04" + fmt.Sprintf("%x", pubKey.X) + fmt.Sprintf("%x", pubKey.Y)}
+	account := blockchain.Account{Role: blockchain.Role{Name: "admin"}, PublicKey: "04" + fmt.Sprintf("%x", pubKey.X) + fmt.Sprintf("%x", pubKey.Y)}
 	addressBytes := []byte(crypto.PubkeyToAddress(pubKey).String())
 
 	result := account.Serialize()
 
 	err = db.Update(func(dbtx *bolt.Tx) error {
-		aBucket, _ := dbtx.CreateBucketIfNotExists([]byte(accountsBucket))
+		aBucket, _ := dbtx.CreateBucketIfNotExists([]byte(blockchain.AccountsBucket))
 		err := aBucket.Put(addressBytes, result)
 		if err != nil {
 			log.Error(err)

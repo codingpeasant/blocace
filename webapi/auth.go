@@ -1,4 +1,4 @@
-package main
+package webapi
 
 import (
 	"errors"
@@ -6,6 +6,8 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+
+	"github.com/codingpeasant/blocace/blockchain"
 )
 
 // CustomClaims is the customized claim based on the standard JWT claims
@@ -16,7 +18,7 @@ type CustomClaims struct {
 }
 
 // issueToken authenticates the user and issue a jwt
-func issueToken(address string, role Role) (string, error) {
+func issueToken(address string, role blockchain.Role, secret string) (string, error) {
 	signingKey := []byte(secret)
 	claims := CustomClaims{
 		role.Name,
@@ -35,7 +37,7 @@ func issueToken(address string, role Role) (string, error) {
 }
 
 // verifyToken verifies is a jwt is valid
-func verifyToken(tokenString string) (jwt.Claims, error) {
+func verifyToken(tokenString string, secret string) (jwt.Claims, error) {
 	signingKey := []byte(secret)
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -58,9 +60,9 @@ func verifyToken(tokenString string) (jwt.Claims, error) {
 			// Token is either expired or not active yet
 			return nil, errors.New("token expired")
 		} else {
-			return nil, errors.New("couldn't handle this token:" + err.Error())
+			return nil, errors.New("couldn't handle this token: " + err.Error())
 		}
 	} else {
-		return nil, errors.New("couldn't handle this token:" + err.Error())
+		return nil, errors.New("couldn't handle this token: " + err.Error())
 	}
 }

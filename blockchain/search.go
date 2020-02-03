@@ -1,4 +1,4 @@
-package main
+package blockchain
 
 import (
 	"bytes"
@@ -23,7 +23,7 @@ const indexDefault = "default"
 type Search struct {
 	db                *bolt.DB
 	indexDirRoot      string
-	blockchainIndices map[string]bleve.Index
+	BlockchainIndices map[string]bleve.Index
 }
 
 // Document represents a document with metadata in the search result
@@ -56,7 +56,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 		}
 		`
 
-		search := Search{db: db, indexDirRoot: indexDirRoot, blockchainIndices: blockchainIndices}
+		search := Search{db: db, indexDirRoot: indexDirRoot, BlockchainIndices: blockchainIndices}
 
 		defaultIndex, err := search.CreateMapping([]byte(jsonSchema))
 
@@ -64,7 +64,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 			log.Fatalf("creating default collection err: %s", err)
 			return nil, err
 		}
-		search.blockchainIndices[indexDefault] = defaultIndex
+		search.BlockchainIndices[indexDefault] = defaultIndex
 		return &search, nil
 	}
 
@@ -98,13 +98,13 @@ func (s *Search) IndexBlock(block *Block) {
 
 	// using batch index for better performance
 	indexBatches := make(map[string]*bleve.Batch)
-	for collection, index := range s.blockchainIndices {
+	for collection, index := range s.BlockchainIndices {
 		indexBatches[collection] = index.NewBatch()
 	}
 
-	for _, tx := range block.transactions {
+	for _, tx := range block.Transactions {
 		// do not index the doc where there is no index exists for it
-		if nil == s.blockchainIndices[tx.Collection] {
+		if nil == s.BlockchainIndices[tx.Collection] {
 			//log.Println("The collection " + tx.Collection + " doesn't exist... Skipped the indexing.")
 			continue
 		}
@@ -128,7 +128,7 @@ func (s *Search) IndexBlock(block *Block) {
 	}
 
 	for collection, batch := range indexBatches {
-		s.blockchainIndices[collection].Batch(batch)
+		s.BlockchainIndices[collection].Batch(batch)
 	}
 }
 
@@ -200,7 +200,7 @@ func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
 		return nil, fmt.Errorf("%s is not a valid collection schema definition", mappingJSON)
 	}
 
-	if nil != s.blockchainIndices[documentMapping.Collection] {
+	if nil != s.BlockchainIndices[documentMapping.Collection] {
 		log.Warnf("The collection " + documentMapping.Collection + " already exists. Nothing to do.")
 		return nil, fmt.Errorf("the collection %s already exists. Nothing to do", documentMapping.Collection)
 	}
@@ -278,7 +278,7 @@ func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
 	}
 
 	err = s.db.Update(func(dbtx *bolt.Tx) error {
-		collectionBucket, err := dbtx.CreateBucketIfNotExists([]byte(collectionsBucket))
+		collectionBucket, err := dbtx.CreateBucketIfNotExists([]byte(CollectionsBucket))
 
 		if err != nil {
 			return err
@@ -300,6 +300,6 @@ func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
 	}
 
 	collectionIndex.SetName(documentMapping.Collection) // rewrite the default name
-	s.blockchainIndices[documentMapping.Collection] = collectionIndex
+	s.BlockchainIndices[documentMapping.Collection] = collectionIndex
 	return collectionIndex, nil
 }
