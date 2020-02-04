@@ -28,27 +28,8 @@ go build -ldflags="-s -w -X main.version=0.0.1"
 ./blocace server
 ```
 
-You can also use the old way to get dependencies and run
-```bash
-git clone https://github.com/codingpeasant/blocace.git
-mkdir -p ~/go/src/github.com/blocace
-mv ./blocace ~/go/src/github.com/blocace/
-go get github.com/sirupsen/logrus
-go get github.com/dgrijalva/jwt-go
-go get github.com/boltdb/bolt
-go get github.com/blevesearch/bleve
-go get github.com/ethereum/go-ethereum/crypto
-go get github.com/gorilla/mux
-go get gopkg.in/validator.v2
-go get github.com/syndtr/goleveldb/leveldb
-go get github.com/urfave/cli
-go get github.com/thoas/go-funk
-cd ~/go/src/github.com/blocace/blocace
-go build -ldflags="-s -w -X main.version=0.0.1"
-./blocace server
-```
 ### Download for Linux/macOS/Windows
-If you'd like to try Blocace directly, please navigate to the [releases](https://github.com/codingpeasant/blocace/releases)
+If you'd like to try Blocace directly, please navigate to [Releases](https://github.com/codingpeasant/blocace/releases) and get the right binary for your OS/ARCH.
 
 ## Docs
 Checkout [Blocace In 10 Minutes](https://blocace.com/docs/#/) and [Blocace APIs Reference](https://blocace.com/docs/#/?id=usage-reference)

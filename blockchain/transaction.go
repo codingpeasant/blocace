@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Transaction represents a Bitcoin transaction
+// Transaction one transaction has on document
 type Transaction struct {
 	ID                 []byte // hash
 	BlockHash          []byte

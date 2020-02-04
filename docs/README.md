@@ -1,13 +1,14 @@
 # Blocace In 10 Minutes
-> This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
-> System prerequisites:
+This guide assumes you have an existing basic knowledge of Web API, database and digital signature. 
+
+System prerequisites:
 
 * (only when you prefer to compile Blocace server) Go version: 1.12 or later;
 
 * (only when you prefer to compile Blocace server) GCC 5.1 or later. Windows may need to install [GCC](http://tdm-gcc.tdragon.net/download) if missing before installing the dependencies. Linux may also need to install gcc using the corresponding package management tool, like `yum install gcc` on RedHat or alike. macOS may need to install [Xcode Command Line Tools](https://www.ics.uci.edu/~pattis/common/handouts/macmingweclipse/allexperimental/macxcodecommandlinetools.html).
 * [Node.js](https://nodejs.org/)
 
-* JS libraries:
+* JS libraries (install using `npm install` in [blocace-js](https://github.com/codingpeasant/blocace-js)):
 
 ```javascript
 {
@@ -50,14 +51,18 @@ INFO[2020-01-29T23:32:42-05:00] awaiting signal...
 ```
 By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 2048; it listens on port 6899 for web API calls. Please keep a note of the root private key which will be used to make administration API calls to Blocace server.
 
-## The following is a breakdown of Blocace REST APIs by going through [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js)
-> You can also skip reading this document for now and run [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js) leveraging [Blocase JS client](https://github.com/codingpeasant/blocace/blob/master/client/index.js) directly to quickly get your hands dirty.
-
 ### Run example.js with the root admin account private key
 ```bash
 # open a new terminal tab and run
+$ git clone https://github.com/codingpeasant/blocace-js.git
+$ cd blocace-js
+$ npm install
 $ node ./client/example.js b9fd4594474e95cbcd1501ee9197b418e93c5b03bf578b1501b05c57f360fcc4
 ```
+That's it. You have successfully built Blocace server and accessed all its web APIs using the Blocace Javascript client.
+
+## Step-by-step breakdown of [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js)
+> If you'd like to know more about the APIs, please continue.
 
 ### Setup root account
 ```javascript
@@ -283,9 +288,10 @@ Collection new1 data schema: {"message":"ok","mapping":{"collection":"new1","fie
 ```
 Blocace client is able to get adminstration information about a given block. In this example, the `blockHeight` is `1` as this block is the 2nd in the blockchain (after the genesis block). It has `10` transaction documents that we just put; the blockchain has `11` transaction documents: 1 `genesis transactions` + 10 `user transactions`; it also gets the schema of collection `new1`.
 
-### You're all set!
+### You're all set! Go ahead an build your web DAPP around Blocace!
 
 # Usage Reference
+Note that the APIs are constantly changing in the pre-release phase.
 ## Blocace CLI reference
 ### Server CLI
 The major command to start a Blocace instance.
