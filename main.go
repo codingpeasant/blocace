@@ -1,3 +1,6 @@
+// Blocace is a distributed document database powered by the blockchain technology.
+// A super light-weight yet powerful document-oriented database backed by blockchain / distributed ledger technology.
+// Data immutable and verifiable is all about trust, which creates the most efficient business.
 package main
 
 import (

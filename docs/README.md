@@ -20,7 +20,7 @@ System prerequisites:
 
 ```
 
-## Compile and start Blocace server
+## 1. Compile and start Blocace server
 
 ```bash
 $ git clone https://github.com/codingpeasant/blocace.git
@@ -51,7 +51,7 @@ INFO[2020-01-29T23:32:42-05:00] awaiting signal...
 ```
 By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 2048; it listens on port 6899 for web API calls. Please keep a note of the root private key which will be used to make administration API calls to Blocace server.
 
-### Run example.js with the root admin account private key
+### 2. Run example.js with the root admin account private key
 ```bash
 # open a new terminal tab and run
 $ git clone https://github.com/codingpeasant/blocace-js.git
@@ -59,10 +59,10 @@ $ cd blocace-js
 $ npm install
 $ node ./client/example.js b9fd4594474e95cbcd1501ee9197b418e93c5b03bf578b1501b05c57f360fcc4
 ```
-That's it. You have successfully built Blocace server and accessed all its web APIs using the Blocace Javascript client.
+That's it. You have successfully built Blocace server and accessed *ALL* its web APIs using the Blocace Javascript client.
 
-## Step-by-step breakdown of [example.js](https://github.com/codingpeasant/blocace/blob/master/client/example.js)
-> If you'd like to know more about the APIs, please continue.
+## Step-by-step breakdown of example.js
+> If you'd like to know more about the APIs, please continue reading.
 
 ### Setup root account
 ```javascript
