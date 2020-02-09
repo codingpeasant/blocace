@@ -1,4 +1,4 @@
-package blockchain
+package pool
 
 import (
 	"encoding/json"
@@ -10,19 +10,21 @@ import (
 	"github.com/boltdb/bolt"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/codingpeasant/blocace/blockchain"
 )
 
 // Receiver represents the front door for the incoming transactions
 type Receiver struct {
 	transactionsBuffer     *Queue
-	blockchain             *Blockchain
+	blockchain             *blockchain.Blockchain
 	maxTxsPerBlock         int
 	maxTimeToGenerateBlock int
 }
 
 // Put a transaction in JSON format to a collection. Returns isValidSig, fieldErrorMapping, transationId, error
 func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signature []byte, permittedAddresses []string) (bool, map[string]string, []byte, error) {
-	isValidSig := IsValidSig(rawData, pubKey, signature)
+	isValidSig := blockchain.IsValidSig(rawData, pubKey, signature)
 
 	if !isValidSig {
 		return false, nil, nil, nil
@@ -35,7 +37,7 @@ func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signatu
 		return true, fieldErrorMapping, nil, err
 	}
 
-	newTx := NewTransaction(rawData, collection, pubKey, signature, permittedAddresses)
+	newTx := blockchain.NewTransaction(rawData, collection, pubKey, signature, permittedAddresses)
 	r.transactionsBuffer.Add(newTx)
 
 	return true, nil, newTx.ID, nil
@@ -51,14 +53,14 @@ func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permit
 		return fieldErrorMapping, err
 	}
 
-	newTx := NewTransaction(rawData, collection, nil, nil, permittedAddresses)
+	newTx := blockchain.NewTransaction(rawData, collection, nil, nil, permittedAddresses)
 	r.transactionsBuffer.Add(newTx)
 
 	return nil, nil
 }
 
 func (r *Receiver) generateBlock() {
-	var candidateTxs []*Transaction
+	var candidateTxs []*blockchain.Transaction
 
 	for i := 0; i < r.maxTxsPerBlock && r.transactionsBuffer.Length() > 0; i++ {
 		candidateTxs = append(candidateTxs, r.transactionsBuffer.Remove())
@@ -90,9 +92,9 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 		return nil, err
 	}
 
-	var documentMapping *DocumentMapping
+	var documentMapping *blockchain.DocumentMapping
 	err = r.blockchain.Db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(CollectionsBucket))
+		b := dbtx.Bucket([]byte(blockchain.CollectionsBucket))
 
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -108,7 +110,7 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 			}).Warn("collection doesn't exist")
 			return errors.New("collection doesn't exist")
 		}
-		documentMapping = DeserializeDocumentMapping(encodedCollectionMapping)
+		documentMapping = blockchain.DeserializeDocumentMapping(encodedCollectionMapping)
 
 		return nil
 	})
@@ -208,6 +210,6 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 }
 
 // NewReceiver creates an instance of Receiver
-func NewReceiver(bc *Blockchain, maxTxsPerBlock int, maxTimeToGenerateBlock int) *Receiver {
+func NewReceiver(bc *blockchain.Blockchain, maxTxsPerBlock int, maxTimeToGenerateBlock int) *Receiver {
 	return &Receiver{transactionsBuffer: NewQueue(), blockchain: bc, maxTxsPerBlock: maxTxsPerBlock, maxTimeToGenerateBlock: maxTimeToGenerateBlock}
 }

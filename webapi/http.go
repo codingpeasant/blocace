@@ -25,12 +25,13 @@ import (
 	validator "gopkg.in/validator.v2"
 
 	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/pool"
 )
 
 // HTTPHandler encapsulates the essential objects to serve http requests
 type HTTPHandler struct {
 	bc      *blockchain.Blockchain
-	r       *blockchain.Receiver
+	r       *pool.Receiver
 	secret  string
 	version string
 }
@@ -1246,6 +1247,6 @@ func processJWT(r *http.Request, requireAdmin bool, secret string) error {
 }
 
 // NewHTTPHandler create a new instance of HTTPHandler
-func NewHTTPHandler(b *blockchain.Blockchain, r *blockchain.Receiver, secret string, version string) HTTPHandler {
+func NewHTTPHandler(b *blockchain.Blockchain, r *pool.Receiver, secret string, version string) HTTPHandler {
 	return HTTPHandler{b, r, secret, version}
 }

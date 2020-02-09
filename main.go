@@ -21,6 +21,7 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/pool"
 	"github.com/codingpeasant/blocace/webapi"
 )
 
@@ -159,7 +160,7 @@ func main() {
 
 func server() {
 	var bc *blockchain.Blockchain
-	var r *blockchain.Receiver
+	var r *pool.Receiver
 	var dbFile = dataDir + filepath.Dir("/") + "blockchain.db"
 
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
@@ -175,7 +176,7 @@ func server() {
 		generateAdminAccount(bc.Db)
 	}
 
-	r = blockchain.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
+	r = pool.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
 	go r.Monitor()
 
 	httpHandler := webapi.NewHTTPHandler(bc, r, secret, version)

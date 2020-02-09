@@ -1,4 +1,6 @@
-package blockchain
+package pool
+
+import "github.com/codingpeasant/blocace/blockchain"
 
 // minQueueLen is smallest capacity that queue may have.
 // Must be power of 2 for bitwise modulus: x % n == x & (n - 1).
@@ -6,14 +8,14 @@ const minQueueLen = 128
 
 // Queue represents a single instance of the queue data structure.
 type Queue struct {
-	buf               []*Transaction
+	buf               []*blockchain.Transaction
 	head, tail, count int
 }
 
 // NewQueue constructs and returns a new Queue.
 func NewQueue() *Queue {
 	return &Queue{
-		buf: make([]*Transaction, minQueueLen),
+		buf: make([]*blockchain.Transaction, minQueueLen),
 	}
 }
 
@@ -25,7 +27,7 @@ func (q *Queue) Length() int {
 // resizes the queue to fit exactly twice its current contents
 // this can result in shrinking if the queue is less than half-full
 func (q *Queue) resize() {
-	newBuf := make([]*Transaction, q.count<<1)
+	newBuf := make([]*blockchain.Transaction, q.count<<1)
 
 	if q.tail > q.head {
 		copy(newBuf, q.buf[q.head:q.tail])
@@ -40,7 +42,7 @@ func (q *Queue) resize() {
 }
 
 // Add puts an element on the end of the queue.
-func (q *Queue) Add(elem *Transaction) {
+func (q *Queue) Add(elem *blockchain.Transaction) {
 	if q.count == len(q.buf) {
 		q.resize()
 	}
@@ -53,7 +55,7 @@ func (q *Queue) Add(elem *Transaction) {
 
 // Peek returns the element at the head of the queue. This call panics
 // if the queue is empty.
-func (q *Queue) Peek() *Transaction {
+func (q *Queue) Peek() *blockchain.Transaction {
 	if q.count <= 0 {
 		panic("queue: Peek() called on empty queue")
 	}
@@ -64,7 +66,7 @@ func (q *Queue) Peek() *Transaction {
 // invalid, the call will panic. This method accepts both positive and
 // negative index values. Index 0 refers to the first element, and
 // index -1 refers to the last.
-func (q *Queue) Get(i int) *Transaction {
+func (q *Queue) Get(i int) *blockchain.Transaction {
 	// If indexing backwards, convert to positive index.
 	if i < 0 {
 		i += q.count
@@ -78,7 +80,7 @@ func (q *Queue) Get(i int) *Transaction {
 
 // Remove removes and returns the element from the front of the queue. If the
 // queue is empty, the call will panic.
-func (q *Queue) Remove() *Transaction {
+func (q *Queue) Remove() *blockchain.Transaction {
 	if q.count <= 0 {
 		panic("queue: Remove() called on empty queue")
 	}
