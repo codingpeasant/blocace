@@ -20,7 +20,7 @@ System prerequisites:
 
 ```
 
-## 1. Compile and start Blocace server
+### 1. Compile and start Blocace server
 
 ```bash
 $ git clone https://github.com/codingpeasant/blocace.git
