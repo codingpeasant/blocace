@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -18,9 +19,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
+	"github.com/thoas/go-funk"
 	"github.com/urfave/cli"
 
 	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/p2p"
 	"github.com/codingpeasant/blocace/pool"
 	"github.com/codingpeasant/blocace/webapi"
 )
@@ -29,7 +32,12 @@ var secret = "blocace_secret"
 var dataDir string
 var maxTxsPerBlock int
 var maxTimeToGenerateBlock int // milliseconds
-var port string
+var portHttp string
+var portP2p int
+var hostP2p string
+var advertiseAddress string
+var peerAddresses string
+var peerAddressesArray []string
 var version string
 var loglevel string
 
@@ -89,10 +97,34 @@ func main() {
 					Destination: &maxTimeToGenerateBlock,
 				},
 				cli.StringFlag{
-					Name:        "port, p",
+					Name:        "porthttp, o",
 					Value:       "6899",
-					Usage:       "the port that the server listens on",
-					Destination: &port,
+					Usage:       "the port that the web api http server listens on",
+					Destination: &portHttp,
+				},
+				cli.IntFlag{
+					Name:        "portP2p, p",
+					Value:       p2p.DefaultPort,
+					Usage:       "the port that the p2p node listens on",
+					Destination: &portP2p,
+				},
+				cli.StringFlag{
+					Name:        "hostP2p, w",
+					Value:       "0.0.0.0",
+					Usage:       "the hostname/ip address that the p2p node binds to",
+					Destination: &hostP2p,
+				},
+				cli.StringFlag{
+					Name:        "advertiseAddress, a",
+					Value:       "",
+					Usage:       "the public address of this node which is advertised on the ID sent to peers during a handshake protocol (optional)",
+					Destination: &advertiseAddress,
+				},
+				cli.StringFlag{
+					Name:        "peerAddresses, e",
+					Value:       "",
+					Usage:       "the comma-seperated address:port list of the peers (optional)",
+					Destination: &peerAddresses,
 				},
 				cli.StringFlag{
 					Name:        "loglevel, l",
@@ -122,12 +154,20 @@ func main() {
 				}
 
 				log.WithFields(log.Fields{
-					"path":     dataDir,
-					"maxtx":    maxTxsPerBlock,
-					"maxtime":  maxTimeToGenerateBlock,
-					"port":     port,
-					"loglevel": loglevel,
+					"path":             dataDir,
+					"maxtx":            maxTxsPerBlock,
+					"maxtime":          maxTimeToGenerateBlock,
+					"porthttp":         portHttp,
+					"portP2p":          portP2p,
+					"hostP2p":          hostP2p,
+					"advertiseAddress": advertiseAddress,
+					"peerAddresses":    peerAddresses,
+					"loglevel":         loglevel,
 				}).Info("configurations: ")
+
+				if !funk.IsEmpty(peerAddresses) {
+					peerAddressesArray = strings.Split(peerAddresses, ",")
+				}
 				server()
 				return nil
 			},
@@ -201,7 +241,8 @@ func server() {
 
 	handler := cors.Default().Handler(router)
 
-	server := &http.Server{Addr: ":" + port, Handler: handler}
+	server := &http.Server{Addr: ":" + portHttp, Handler: handler}
+	p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 
 	go func() {
 		if err := server.ListenAndServe(); err == nil {

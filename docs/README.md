@@ -57,7 +57,7 @@ By default, __Blocace__ creates a `data` directory within the working dir to sto
 $ git clone https://github.com/codingpeasant/blocace-js.git
 $ cd blocace-js
 $ npm install
-$ node ./client/example.js b9fd4594474e95cbcd1501ee9197b418e93c5b03bf578b1501b05c57f360fcc4
+$ node ./example.js b9fd4594474e95cbcd1501ee9197b418e93c5b03bf578b1501b05c57f360fcc4
 ```
 That's it. You have successfully built Blocace server and accessed *ALL* its web APIs using the Blocace Javascript client.
 
