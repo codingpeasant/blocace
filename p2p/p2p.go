@@ -16,40 +16,20 @@ import (
 var DefaultPort = 6091
 
 type P2P struct {
-	node *noise.Node
+	Node *noise.Node
 }
 
-func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectionAddress ...string) *P2P {
-	var nodeOptions []noise.NodeOption
-	if !funk.IsEmpty(bindHost) {
-		nodeOptions = append(nodeOptions, noise.WithNodeBindHost(net.ParseIP(bindHost)))
-	}
-
-	if !funk.IsEmpty(bindPort) {
-		nodeOptions = append(nodeOptions, noise.WithNodeBindPort(bindPort))
-	} else {
-		log.Infof("no listening port provided. Using the default %d", DefaultPort)
-		nodeOptions = append(nodeOptions, noise.WithNodeBindPort(uint16(DefaultPort)))
-	}
-
-	if !funk.IsEmpty(advertiseAddress) {
-		nodeOptions = append(nodeOptions, noise.WithNodeAddress(advertiseAddress))
-	}
-
-	nodeOptions = append(nodeOptions, noise.WithNodeBindHost(net.ParseIP(bindHost)))
-
-	if !funk.IsEmpty(advertiseAddress) {
-		nodeOptions = append(nodeOptions, noise.WithNodeBindHost(net.ParseIP(bindHost)))
-	}
+func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectionAddresses ...string) *P2P {
 	// Create a new configured node.
-	node, err := noise.NewNode(nodeOptions...)
+	node, err := noise.NewNode(
+		noise.WithNodeBindHost(net.ParseIP(bindHost)),
+		noise.WithNodeBindPort(bindPort),
+		noise.WithNodeAddress(advertiseAddress),
+	)
 
 	if err != nil {
 		log.Panic(err)
 	}
-
-	// Release resources associated to node at the end of the program.
-	defer node.Close()
 
 	// Instantiate Kademlia.
 	events := kademlia.Events{
@@ -75,22 +55,22 @@ func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectio
 		log.Panic(err)
 	}
 
-	if !funk.IsEmpty(connectionAddress) {
+	if !funk.IsEmpty(connectionAddresses) {
 		// Ping nodes to initially bootstrap and discover peers from.
-		bootstrap(node, connectionAddress)
+		bootstrap(node, connectionAddresses)
 		// Attempt to discover peers if we are bootstrapped to any nodes.
 		discover(overlay)
 	} else {
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
 
-	return &P2P{node: node}
+	return &P2P{Node: node}
 }
 
 // bootstrap pings and dials an array of network addresses which we may interact with and  discover peers from.
 func bootstrap(node *noise.Node, addresses []string) {
 	for _, addr := range addresses {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		_, err := node.Ping(ctx, addr)
 		cancel()
 

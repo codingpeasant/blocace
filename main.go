@@ -242,7 +242,7 @@ func server() {
 	handler := cors.Default().Handler(router)
 
 	server := &http.Server{Addr: ":" + portHttp, Handler: handler}
-	p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
+	p2p := p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 
 	go func() {
 		if err := server.ListenAndServe(); err == nil {
@@ -267,6 +267,9 @@ func server() {
 
 	log.Info("awaiting signal...")
 	<-done
+
+	// Release resources associated to node at the end of the program.
+	p2p.Node.Close()
 
 	if err := server.Shutdown(ctx); err != nil {
 		log.Error(err)
