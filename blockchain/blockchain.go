@@ -20,7 +20,7 @@ type Blockchain struct {
 
 // RegisterAccount persists the account to the storage
 func (bc Blockchain) RegisterAccount(address []byte, account Account) error {
-	result := account.Serialize()
+	result := account.Marshal()
 
 	err := bc.Db.Update(func(dbtx *bolt.Tx) error {
 		aBucket, _ := dbtx.CreateBucketIfNotExists([]byte(AccountsBucket))

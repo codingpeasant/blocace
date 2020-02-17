@@ -20,6 +20,7 @@ type Account struct {
 	PublicKey     string `json:"publicKey" validate:"len=128"`
 	ChallengeWord string `json:"challengeWord"`
 	Role          `json:"role"`
+	LastModified  int64 `json:"lastModified"`
 }
 
 // Role represents the rights of access to collections and API endpoints
@@ -29,8 +30,8 @@ type Role struct {
 	CollectionsReadOverride []string `json:"collectionsReadOverride"`
 }
 
-// Serialize serializes the transaction
-func (a Account) Serialize() []byte {
+// Serialize serializes the account
+func (a Account) Marshal() []byte {
 	var result bytes.Buffer
 	encoder := gob.NewEncoder(&result)
 	err := encoder.Encode(a)
@@ -39,6 +40,19 @@ func (a Account) Serialize() []byte {
 	}
 
 	return result.Bytes()
+}
+
+// UnmarshalAccount deserializes an account for p2p
+func UnmarshalAccount(a []byte) (Account, error) {
+	var account Account
+
+	decoder := gob.NewDecoder(bytes.NewReader(a))
+	err := decoder.Decode(&account)
+	if err != nil {
+		log.Error(err)
+	}
+
+	return account, err
 }
 
 // DeserializeAccount deserializes an account

@@ -25,6 +25,7 @@ import (
 	validator "gopkg.in/validator.v2"
 
 	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/p2p"
 	"github.com/codingpeasant/blocace/pool"
 )
 
@@ -32,6 +33,7 @@ import (
 type HTTPHandler struct {
 	bc      *blockchain.Blockchain
 	r       *pool.Receiver
+	p2p     *p2p.P2P
 	secret  string
 	version string
 }
@@ -452,12 +454,6 @@ func (h HTTPHandler) HandleTransactionBulk(w http.ResponseWriter, r *http.Reques
 //     "publicKey":"e4a15344314a15c70a47e18fadc8117939a6dc5ed863ced84a898694b241d10fa129eff3989ec98393c52bac6d86d0d72534061538eb1e513aaae4def5f83fbb"
 // }
 func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request) {
-	// err := processJWT(r, true)
-	// if err != nil {
-	// 	http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
-	// 	return
-	// }
-
 	// read the request body
 	requestBody, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -479,6 +475,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 
 	account.PublicKey = "04" + account.PublicKey // appending 04 to be compatible with ecdsa.PublicKey uncompressed form
 	account.Role.Name = "user"                   // user only registration
+	account.LastModified = time.Now().UnixNano() / 1000000
 	publicKeyBytes, err := hex.DecodeString(account.PublicKey)
 	if err != nil {
 		http.Error(w, "{\"message\": \"error parsing public key: "+err.Error()+"\"}", 400)
@@ -526,6 +523,9 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 		http.Error(w, "{\"message\": \"error adding the account: "+err.Error()+"\"}", 400)
 		return
 	}
+
+	// broadcast to peers
+	h.p2p.BroadcastObject(account)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -608,11 +608,15 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 
 	account.PublicKey = oldAccount.PublicKey
 	account.Role = oldAccount.Role
+	account.LastModified = time.Now().UnixNano() / 1000000
 
 	if err = h.bc.RegisterAccount([]byte(address), account); err != nil {
 		http.Error(w, "{\"message\": \"error adding the account: "+err.Error()+"\"}", 400)
 		return
 	}
+
+	// broadcast to peers
+	h.p2p.BroadcastObject(account)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -1247,6 +1251,6 @@ func processJWT(r *http.Request, requireAdmin bool, secret string) error {
 }
 
 // NewHTTPHandler create a new instance of HTTPHandler
-func NewHTTPHandler(b *blockchain.Blockchain, r *pool.Receiver, secret string, version string) HTTPHandler {
-	return HTTPHandler{b, r, secret, version}
+func NewHTTPHandler(b *blockchain.Blockchain, r *pool.Receiver, p *p2p.P2P, secret string, version string) HTTPHandler {
+	return HTTPHandler{b, r, p, secret, version}
 }

@@ -219,7 +219,9 @@ func server() {
 	r = pool.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
 	go r.Monitor()
 
-	httpHandler := webapi.NewHTTPHandler(bc, r, secret, version)
+	p := p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
+
+	httpHandler := webapi.NewHTTPHandler(bc, r, p, secret, version)
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(webapi.ErrorHandler)
 	router.Handle("/", httpHandler)
@@ -242,7 +244,6 @@ func server() {
 	handler := cors.Default().Handler(router)
 
 	server := &http.Server{Addr: ":" + portHttp, Handler: handler}
-	p2p := p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 
 	go func() {
 		if err := server.ListenAndServe(); err == nil {
@@ -269,7 +270,7 @@ func server() {
 	<-done
 
 	// Release resources associated to node at the end of the program.
-	p2p.Node.Close()
+	p.Node.Close()
 
 	if err := server.Shutdown(ctx); err != nil {
 		log.Error(err)
@@ -302,7 +303,7 @@ func generateAdminAccount(db *bolt.DB) {
 	account := blockchain.Account{Role: blockchain.Role{Name: "admin"}, PublicKey: "04" + fmt.Sprintf("%x", pubKey.X) + fmt.Sprintf("%x", pubKey.Y)}
 	addressBytes := []byte(crypto.PubkeyToAddress(pubKey).String())
 
-	result := account.Serialize()
+	result := account.Marshal()
 
 	err = db.Update(func(dbtx *bolt.Tx) error {
 		aBucket, _ := dbtx.CreateBucketIfNotExists([]byte(blockchain.AccountsBucket))
