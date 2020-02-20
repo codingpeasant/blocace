@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -17,9 +18,11 @@ import (
 
 var DefaultPort = 6091
 
+// P2P is the main object to handle networking-related messages
 type P2P struct {
 	Node    *noise.Node
 	overlay *kademlia.Protocol
+	bc      *blockchain.Blockchain
 }
 
 // BroadcastObject sends a serializable object to all the known peers
@@ -40,7 +43,7 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 	}
 }
 
-func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectionAddresses ...string) *P2P {
+func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, advertiseAddress string, connectionAddresses ...string) *P2P {
 	// Create a new configured node.
 	node, err := noise.NewNode(
 		noise.WithNodeBindHost(net.ParseIP(bindHost)),
@@ -53,10 +56,34 @@ func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectio
 	}
 
 	// Register the chatMessage Go type to the node with an associated unmarshal function.
-	node.RegisterMessage(blockchain.Account{}, blockchain.UnmarshalAccount)
+	node.RegisterMessage(AccountsP2P{}, unmarshalAccountsP2P)
 
 	// Register a message handler to the node.
-	node.Handle(handleAccount)
+	node.Handle(func(ctx noise.HandlerContext) error {
+		if ctx.IsRequest() {
+			return nil
+		}
+
+		obj, err := ctx.DecodeMessage()
+		if err != nil {
+			return err
+		}
+
+		accountsP2p, ok := obj.(AccountsP2P)
+		if !ok {
+			return errors.New("cannot parse account from peer: " + ctx.ID().ID.String())
+		}
+
+		log.Debugf("%s(%s) > %+v\n", ctx.ID().Address, ctx.ID().ID.String(), accountsP2p)
+
+		for address, account := range accountsP2p.Accounts {
+			if err = bc.RegisterAccount([]byte(address), account); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	// Instantiate Kademlia.
 	events := kademlia.Events{
@@ -88,7 +115,7 @@ func NewP2P(bindHost string, bindPort uint16, advertiseAddress string, connectio
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
 
-	return &P2P{Node: node, overlay: overlay}
+	return &P2P{Node: node, overlay: overlay, bc: bc}
 }
 
 // bootstrap pings and dials an array of network addresses which we may interact with and  discover peers from.
@@ -119,25 +146,4 @@ func discover(overlay *kademlia.Protocol) {
 	} else {
 		log.Warn("did not discover any peers.")
 	}
-}
-
-// handleAccount unmarshal the object from peers and persist it to local DB
-func handleAccount(ctx noise.HandlerContext) error {
-	if ctx.IsRequest() {
-		return nil
-	}
-
-	obj, err := ctx.DecodeMessage()
-	if err != nil {
-		return err
-	}
-
-	msg, ok := obj.(blockchain.Account)
-	if !ok {
-		return &net.ParseError{}
-	}
-
-	fmt.Printf("%s(%s)> %+v\n", ctx.ID().Address, ctx.ID().ID.String(), msg)
-
-	return nil
 }

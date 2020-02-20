@@ -475,6 +475,8 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 
 	account.PublicKey = "04" + account.PublicKey // appending 04 to be compatible with ecdsa.PublicKey uncompressed form
 	account.Role.Name = "user"                   // user only registration
+	account.Role.CollectionsWrite = nil          // don't allow setting permissions
+	account.Role.CollectionsReadOverride = nil
 	account.LastModified = time.Now().UnixNano() / 1000000
 	publicKeyBytes, err := hex.DecodeString(account.PublicKey)
 	if err != nil {
@@ -482,13 +484,11 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var publicKey *ecdsa.PublicKey
-	if publicKey, err = crypto.UnmarshalPubkey(publicKeyBytes); err != nil {
+	var address string
+	if address, err = blockchain.PublicKeyToAddress(publicKeyBytes); err != nil {
 		http.Error(w, "{\"message\": \"error parsing public key: "+err.Error()+"\"}", 400)
 		return
 	}
-
-	address := crypto.PubkeyToAddress(*publicKey).String()
 
 	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
@@ -525,7 +525,9 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 	}
 
 	// broadcast to peers
-	h.p2p.BroadcastObject(account)
+	accountMap := make(map[string]blockchain.Account)
+	accountMap[address] = account
+	h.p2p.BroadcastObject(p2p.AccountsP2P{Accounts: accountMap})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -616,7 +618,9 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// broadcast to peers
-	h.p2p.BroadcastObject(account)
+	accountMap := make(map[string]blockchain.Account)
+	accountMap[address] = account
+	h.p2p.BroadcastObject(p2p.AccountsP2P{Accounts: accountMap})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

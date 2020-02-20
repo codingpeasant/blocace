@@ -219,7 +219,7 @@ func server() {
 	r = pool.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
 	go r.Monitor()
 
-	p := p2p.NewP2P(hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
+	p := p2p.NewP2P(bc, hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 
 	httpHandler := webapi.NewHTTPHandler(bc, r, p, secret, version)
 	router := mux.NewRouter()
