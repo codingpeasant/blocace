@@ -377,14 +377,14 @@ WARNING: THIS PRIVATE KEY ONLY SHOWS ONCE. PLEASE SAVE IT NOW AND KEEP IT SAFE. 
 ####################
 ```
 ## Blocace web API reference
-### `static create(hostname, port, protocol)`
+### `static create(protocol, hostname, port)`
 Generate random Blocace client key pair and initialize the client class
 
 Example:
 ```
 var blocace = Blocace.create('localhost', '6899', 'http)
 ```
-### `static createFromPrivateKey(privKey, hostname, port, protocol)`
+### `static createFromPrivateKey(privKey, protocol, hostname, port)`
 Use an existing client private key and initialize the client class
 
 Example:
