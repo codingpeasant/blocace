@@ -26,10 +26,19 @@ type P2P struct {
 	overlay  *kademlia.Protocol
 	bc       *blockchain.Blockchain
 	accounts map[string]blockchain.Account
+	mappings map[string]blockchain.DocumentMapping
 }
 
 // BroadcastObject sends a serializable object to all the known peers
 func (p *P2P) BroadcastObject(object noise.Serializable) {
+	// add the accounts to local cache before broadcasting
+	accountsToAdd, ok := object.(AccountsP2P)
+	if ok {
+		for address, account := range accountsToAdd.Accounts {
+			p.accounts[address] = account // update the cache
+		}
+	}
+
 	for _, id := range p.overlay.Table().Peers() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		err := p.Node.SendMessage(ctx, id.Address, object)
@@ -46,7 +55,7 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 	}
 }
 
-// BroadcastObject sends a serializable object to all the known peers
+// SyncAccountsFromPeers sends rpc to peers to sync the accounts
 func (p *P2P) SyncAccountsFromPeers() {
 	requestParameters := make(map[string]string)
 	for address, account := range p.accounts {
@@ -55,11 +64,11 @@ func (p *P2P) SyncAccountsFromPeers() {
 
 	for _, id := range p.overlay.Table().Peers() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		accountsFromPeerRes, err := p.Node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: "accounts", RequestParameters: requestParameters})
+		accountsFromPeerRes, err := p.Node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: accountsRequestType, RequestParameters: requestParameters})
 		cancel()
 
 		if err != nil {
-			log.Errorf("failed to send request message to %s(%s). Skipping... [error: %s]\n",
+			log.Errorf("failed to send account request message to %s(%s). Skipping... [error: %s]\n",
 				id.Address,
 				id.ID.String(),
 				err,
@@ -84,8 +93,47 @@ func (p *P2P) SyncAccountsFromPeers() {
 	}
 }
 
+// SyncMappingsFromPeers sends rpc to peers to sync the mappings
+func (p *P2P) SyncMappingsFromPeers() {
+	requestParameters := make(map[string]string)
+	for collectionName, _ := range p.mappings {
+		requestParameters[collectionName] = collectionName // just mapping names are okay
+	}
+
+	for _, id := range p.overlay.Table().Peers() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		mappingsFromPeerRes, err := p.Node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: mappingsRequestType, RequestParameters: requestParameters})
+		cancel()
+
+		if err != nil {
+			log.Errorf("failed to send mapping request message to %s(%s). Skipping... [error: %s]\n",
+				id.Address,
+				id.ID.String(),
+				err,
+			)
+			continue
+		}
+
+		mappingsFromPeer, ok := mappingsFromPeerRes.(MappingsP2P)
+		if !ok {
+			log.Error("cannot parse mappings from peer: " + id.ID.String())
+		}
+
+		for collectionName, mapping := range mappingsFromPeer.Mappings {
+			if funk.IsEmpty(p.mappings[collectionName]) {
+				p.mappings[collectionName] = mapping // update the cache
+				log.Debugf("%s(%s) > %+v\n", id.Address, id.ID.String(), mapping)
+				if _, err = p.bc.Search.CreateMapping(mapping); err != nil {
+					log.Error(err)
+				}
+			}
+		}
+	}
+}
+
 func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, advertiseAddress string, connectionAddresses ...string) *P2P {
 	accounts := initializeAccounts(bc.Db)
+	mappings := initializeMappings(bc.Db)
 	// Create a new configured node.
 	node, err := noise.NewNode(
 		noise.WithNodeBindHost(net.ParseIP(bindHost)),
@@ -98,8 +146,9 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	}
 
 	// Register the chatMessage Go type to the node with an associated unmarshal function.
-	node.RegisterMessage(AccountsP2P{}, unmarshalAccountsP2P)
 	node.RegisterMessage(RequestP2P{}, unmarshalRequestP2P)
+	node.RegisterMessage(AccountsP2P{}, unmarshalAccountsP2P)
+	node.RegisterMessage(MappingsP2P{}, unmarshalMappingsP2P)
 
 	// Register a message handler to the node.
 	node.Handle(func(ctx noise.HandlerContext) error {
@@ -108,11 +157,21 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 			if err != nil {
 				return err
 			}
+
 			requestP2P, ok := obj.(RequestP2P)
 			if !ok {
 				return nil
 			}
-			return ctx.SendMessage(handleAccountsRequest(requestP2P, accounts))
+
+			switch requestP2P.RequestType {
+			case accountsRequestType:
+				ctx.SendMessage(handleAccountsRequest(requestP2P, accounts))
+			case mappingsRequestType:
+				ctx.SendMessage(handleMappingsRequest(requestP2P, mappings))
+			default:
+				log.Warnf("got unsupported p2p request: +%v", requestP2P)
+				return nil
+			}
 		}
 
 		obj, err := ctx.DecodeMessage()
@@ -120,19 +179,29 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 			return err
 		}
 
-		accountsP2p, ok := obj.(AccountsP2P)
-		if !ok {
-			return errors.New("cannot parse account from peer: " + ctx.ID().ID.String())
-		}
-
-		for address, account := range accountsP2p.Accounts {
-			if funk.IsEmpty(accounts[address]) || accounts[address].LastModified < account.LastModified {
-				accounts[address] = account // update the cache
-				log.Debugf("%s(%s) > %+v\n", ctx.ID().Address, ctx.ID().ID.String(), accountsP2p)
-				if err = bc.RegisterAccount([]byte(address), account); err != nil {
-					return err
+		switch objectP2p := obj.(type) {
+		case AccountsP2P:
+			for address, account := range objectP2p.Accounts {
+				if funk.IsEmpty(accounts[address]) || accounts[address].LastModified < account.LastModified {
+					accounts[address] = account // update the cache
+					log.Debugf("%s(%s) > %+v\n", ctx.ID().Address, ctx.ID().ID.String(), objectP2p)
+					if err = bc.RegisterAccount([]byte(address), account); err != nil {
+						return err
+					}
 				}
 			}
+		case MappingsP2P:
+			for mappingName, mapping := range objectP2p.Mappings {
+				if funk.IsEmpty(mappings[mappingName]) {
+					mappings[mappingName] = mapping // update the cache
+					log.Debugf("%s(%s) > %+v\n", ctx.ID().Address, ctx.ID().ID.String(), objectP2p)
+					if _, err = bc.Search.CreateMapping(mapping); err != nil {
+						return err
+					}
+				}
+			}
+		default:
+			return errors.New("cannot parse the object from peer: " + ctx.ID().ID.String())
 		}
 
 		return nil
@@ -168,7 +237,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
 
-	return &P2P{Node: node, overlay: overlay, bc: bc, accounts: accounts}
+	return &P2P{Node: node, overlay: overlay, bc: bc, accounts: accounts, mappings: mappings}
 }
 
 // bootstrap pings and dials an array of network addresses which we may interact with and  discover peers from.
@@ -210,12 +279,29 @@ func initializeAccounts(db *bolt.DB) map[string]blockchain.Account {
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			accountMap[fmt.Sprintf("%x", k)] = *blockchain.DeserializeAccount(v)
+			accountMap[fmt.Sprintf("%s", k)] = *blockchain.DeserializeAccount(v)
 		}
 
 		return nil
 	})
 	return accountMap
+}
+
+// initializeMappings loads the mappings (schemas) from disk to RAM
+func initializeMappings(db *bolt.DB) map[string]blockchain.DocumentMapping {
+	collectionMapings := make(map[string]blockchain.DocumentMapping)
+	db.View(func(tx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b := tx.Bucket([]byte(blockchain.CollectionsBucket))
+		c := b.Cursor()
+
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			collectionMapings[fmt.Sprintf("%s", k)] = *blockchain.DeserializeDocumentMapping(v)
+		}
+
+		return nil
+	})
+	return collectionMapings
 }
 
 // handleAccountsRequest returns the new accounts which the peer doesn't have or has a older version of
@@ -239,4 +325,19 @@ func handleAccountsRequest(request RequestP2P, accountsLocal map[string]blockcha
 	}
 
 	return AccountsP2P{Accounts: accountsToSend}
+}
+
+// handleMappingsRequest returns the new mappings which the peer doesn't have
+func handleMappingsRequest(request RequestP2P, mappingsLocal map[string]blockchain.DocumentMapping) MappingsP2P {
+	mappingsToSend := make(map[string]blockchain.DocumentMapping)
+	for collectionName, mapping := range mappingsLocal {
+		if collectionName == "default" {
+			continue
+		}
+		if funk.IsEmpty(request.RequestParameters[collectionName]) {
+			mappingsToSend[collectionName] = mapping
+		}
+	}
+
+	return MappingsP2P{Mappings: mappingsToSend}
 }

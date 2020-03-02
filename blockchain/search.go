@@ -58,7 +58,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 
 		search := Search{db: db, indexDirRoot: indexDirRoot, BlockchainIndices: blockchainIndices}
 
-		defaultIndex, err := search.CreateMapping([]byte(jsonSchema))
+		defaultIndex, err := search.CreateMappingByJson([]byte(jsonSchema))
 
 		if err != nil {
 			log.Fatalf("creating default collection err: %s", err)
@@ -175,36 +175,7 @@ func DeserializeDocumentMapping(a []byte) *DocumentMapping {
 }
 
 // CreateMapping creates the data schema for a specific collection.
-// An example JSON payload:
-// {
-//     "collection": "new_collection",
-//     "fields": {
-//         "id": {"type": "text"},
-//         "title": {"type": "text"},
-//         "age": {"type": "number"},
-//         "created": {"type": "datetime"},
-//         "isModified": {"type": "boolean"},
-//         "location": {"type": "geopoint"}
-//     }
-// }
-func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
-	var documentMapping DocumentMapping
-
-	if err := json.Unmarshal(mappingJSON, &documentMapping); err != nil {
-		log.Errorf("error parsing the document json mapping json payload: " + err.Error())
-		return nil, err
-	}
-
-	if len(documentMapping.Collection) == 0 || documentMapping.Fields == nil {
-		log.Errorf("%s is not a valid collection schema definition\n", mappingJSON)
-		return nil, fmt.Errorf("%s is not a valid collection schema definition", mappingJSON)
-	}
-
-	if nil != s.BlockchainIndices[documentMapping.Collection] {
-		log.Warnf("The collection " + documentMapping.Collection + " already exists. Nothing to do.")
-		return nil, fmt.Errorf("the collection %s already exists. Nothing to do", documentMapping.Collection)
-	}
-
+func (s *Search) CreateMapping(documentMapping DocumentMapping) (bleve.Index, error) {
 	// a generic reusable mapping for text
 	textFieldMapping := bleve.NewTextFieldMapping()
 	textFieldMapping.Store = false
@@ -302,4 +273,39 @@ func (s *Search) CreateMapping(mappingJSON []byte) (bleve.Index, error) {
 	collectionIndex.SetName(documentMapping.Collection) // rewrite the default name
 	s.BlockchainIndices[documentMapping.Collection] = collectionIndex
 	return collectionIndex, nil
+}
+
+// CreateMappingByJson creates the data schema for a specific collection, which is defined in JSON
+// An example JSON payload:
+// {
+//     "collection": "new_collection",
+//     "fields": {
+//         "id": {"type": "text"},
+//         "title": {"type": "text"},
+//         "age": {"type": "number"},
+//         "created": {"type": "datetime"},
+//         "isModified": {"type": "boolean"},
+//         "location": {"type": "geopoint"}
+//     }
+// }
+func (s *Search) CreateMappingByJson(mappingJSON []byte) (bleve.Index, error) {
+	var documentMapping DocumentMapping
+
+	if err := json.Unmarshal(mappingJSON, &documentMapping); err != nil {
+		log.Errorf("error parsing the document json mapping json payload: " + err.Error())
+		return nil, err
+	}
+
+	if len(documentMapping.Collection) == 0 || documentMapping.Fields == nil {
+		log.Errorf("%s is not a valid collection schema definition\n", mappingJSON)
+		return nil, fmt.Errorf("%s is not a valid collection schema definition", mappingJSON)
+	}
+
+	if nil != s.BlockchainIndices[documentMapping.Collection] {
+		log.Warnf("The collection " + documentMapping.Collection + " already exists. Nothing to do.")
+		return nil, fmt.Errorf("the collection %s already exists. Nothing to do", documentMapping.Collection)
+	}
+
+	return s.CreateMapping(documentMapping)
+
 }

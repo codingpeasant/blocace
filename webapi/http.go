@@ -107,7 +107,14 @@ func (h *HTTPHandler) CollectionMappingCreation(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	newIndex, err := h.bc.Search.CreateMapping(mappingBody)
+	newIndex, err := h.bc.Search.CreateMappingByJson(mappingBody)
+	var documentMapping blockchain.DocumentMapping
+
+	if err := json.Unmarshal(mappingBody, &documentMapping); err == nil {
+		mappingToBroadcast := make(map[string]blockchain.DocumentMapping)
+		mappingToBroadcast[documentMapping.Collection] = documentMapping
+		h.p2p.BroadcastObject(p2p.MappingsP2P{Mappings: mappingToBroadcast})
+	}
 
 	if err != nil {
 		http.Error(w, "{\"message\": \"could not create the collection: "+err.Error()+"\"}", 400)

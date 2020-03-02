@@ -7,6 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const accountsRequestType = "accounts"
+const mappingsRequestType = "mappings"
+
 // RequestP2P represents common p2p request body
 type RequestP2P struct {
 	RequestType       string

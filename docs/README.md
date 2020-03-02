@@ -382,7 +382,7 @@ Generate random Blocace client key pair and initialize the client class
 
 Example:
 ```
-var blocace = Blocace.create('localhost', '6899', 'http)
+var blocace = Blocace.create('http', 'localhost', '6899')
 ```
 ### `static createFromPrivateKey(privKey, protocol, hostname, port)`
 Use an existing client private key and initialize the client class

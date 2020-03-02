@@ -221,6 +221,7 @@ func server() {
 
 	p := p2p.NewP2P(bc, hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 	p.SyncAccountsFromPeers()
+	p.SyncMappingsFromPeers()
 
 	httpHandler := webapi.NewHTTPHandler(bc, r, p, secret, version)
 	router := mux.NewRouter()
