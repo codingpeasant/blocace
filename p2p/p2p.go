@@ -19,6 +19,7 @@ import (
 )
 
 var DefaultPort = 6091
+var P2PPrivateKeyKey = "p2pPrivKey"
 
 // P2P is the main object to handle networking-related messages
 type P2P struct {
@@ -131,14 +132,47 @@ func (p *P2P) SyncMappingsFromPeers() {
 	}
 }
 
+// NewP2P initializes the P2P node with messages and handlers
 func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, advertiseAddress string, connectionAddresses ...string) *P2P {
 	accounts := initializeAccounts(bc.Db)
 	mappings := initializeMappings(bc.Db)
+
+	var p2pPrivKey noise.PrivateKey
+	var p2pPrivKeyBytes []byte
+
+	err := bc.Db.View(func(dbtx *bolt.Tx) error {
+		bBucket := dbtx.Bucket([]byte(blockchain.BlocksBucket))
+		p2pPrivKeyBytes = bBucket.Get([]byte(P2PPrivateKeyKey))
+
+		return nil
+	})
+
+	if p2pPrivKeyBytes == nil {
+		_, newPrivateKey, err := noise.GenerateKeys(nil)
+		if err != nil {
+			log.Panic(err)
+		}
+
+		err = bc.Db.Update(func(dbtx *bolt.Tx) error {
+			bBucket := dbtx.Bucket([]byte(blockchain.BlocksBucket))
+			err = bBucket.Put([]byte(P2PPrivateKeyKey), newPrivateKey[:])
+			if err != nil {
+				log.Panic(err)
+			}
+			return nil
+		})
+
+		p2pPrivKey = newPrivateKey
+	} else {
+		copy(p2pPrivKey[:], p2pPrivKeyBytes)
+	}
+
 	// Create a new configured node.
 	node, err := noise.NewNode(
 		noise.WithNodeBindHost(net.ParseIP(bindHost)),
 		noise.WithNodeBindPort(bindPort),
 		noise.WithNodeAddress(advertiseAddress),
+		noise.WithNodePrivateKey(p2pPrivKey),
 	)
 
 	if err != nil {

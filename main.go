@@ -38,6 +38,7 @@ var hostP2p string
 var advertiseAddress string
 var peerAddresses string
 var peerAddressesArray []string
+var bulkLoading string
 var version string
 var loglevel string
 
@@ -127,6 +128,12 @@ func main() {
 					Destination: &peerAddresses,
 				},
 				cli.StringFlag{
+					Name:        "bulkLoading, b",
+					Value:       "false",
+					Usage:       "enable bulking loading API",
+					Destination: &bulkLoading,
+				},
+				cli.StringFlag{
 					Name:        "loglevel, l",
 					Value:       "info",
 					Usage:       "the log levels: panic, fatal, error, warn, info, debug, trace",
@@ -162,6 +169,7 @@ func main() {
 					"hostP2p":          hostP2p,
 					"advertiseAddress": advertiseAddress,
 					"peerAddresses":    peerAddresses,
+					"bulkLoading":      bulkLoading,
 					"loglevel":         loglevel,
 				}).Info("configurations: ")
 
@@ -234,7 +242,6 @@ func server() {
 	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
 	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")       // user
 	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")       // user
-	router.HandleFunc("/bulk/{collection}", httpHandler.HandleTransactionBulk).Methods("POST")       // everyone
 	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")          // admin
 	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                     // user
 	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")         // user
@@ -242,6 +249,10 @@ func server() {
 	router.HandleFunc("/account/{address}", httpHandler.AccountUpdate).Methods("POST")                    // admin
 	router.HandleFunc("/account/{address}", httpHandler.AccountGet).Methods("GET")                        // user
 	router.HandleFunc("/setaccountpermission/{address}", httpHandler.SetAccountReadWrite).Methods("POST") // admin
+
+	if bulkLoading == "true" {
+		router.HandleFunc("/bulk/{collection}", httpHandler.HandleTransactionBulk).Methods("POST") // everyone
+	}
 
 	handler := cors.Default().Handler(router)
 
