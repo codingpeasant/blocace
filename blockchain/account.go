@@ -12,7 +12,7 @@ type Account struct {
 	DateOfBirth   string `json:"dateOfBirth" validate:"len=10"`
 	FirstName     string `json:"firstName" validate:"nonzero"`
 	LastName      string `json:"lastName" validate:"nonzero"`
-	Company       string `json:"company" validate:"nonzero"`
+	Organization  string `json:"organization" validate:"nonzero"`
 	Position      string `json:"position" validate:"nonzero"`
 	Email         string `json:"email" validate:"min=6,max=80"`
 	Phone         string `json:"phone" validate:"min=6,max=40"`
@@ -75,7 +75,7 @@ func (a Account) ToMap(isAdmin bool) map[string]interface{} {
 	accountMap["dateOfBirth"] = a.DateOfBirth
 	accountMap["firstName"] = a.FirstName
 	accountMap["lastName"] = a.LastName
-	accountMap["company"] = a.Company
+	accountMap["organization"] = a.Organization
 	accountMap["position"] = a.Position
 	accountMap["email"] = a.Email
 	accountMap["phone"] = a.Phone

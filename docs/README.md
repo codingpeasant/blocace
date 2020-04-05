@@ -99,7 +99,7 @@ JWT (admin): eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlTmFtZSI6ImFkbWluIiwiYW
 
 Address of new account: 0xf55486314B0C4F032d603B636327ed5c82218688
 
-New account Info: {"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":null,"collectionsWrite":null,"company":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
+New account Info: {"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":null,"collectionsWrite":null,"organization":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
 ```
 First login as the root admin user and obtain a [JSON Web Token](https://jwt.io/) to access Blocace server and create a new user account without read/write permissions. And then get the account information noting that `"collectionsReadOverride":null,"collectionsWrite":null`
 
@@ -117,7 +117,7 @@ Output
 ```
 Account permission response: {"message":"account permission updated","address":"0xf55486314B0C4F032d603B636327ed5c82218688"}
 
-Get the update account: {"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":["default","collection2","new1"],"collectionsWrite":["default","new1"],"company":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
+Get the update account: {"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":["default","collection2","new1"],"collectionsWrite":["default","new1"],"organization":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
 ```
 Setting the read/write permission to the new user: `'collectionsWrite': ['default', 'new1'],'collectionsReadOverride': ['default', 'collection2', 'new1']`.
 
@@ -425,7 +425,7 @@ const accountPayload = {
   'dateOfBirth': '2018-10-01',
   'firstName': 'Hooper',
   'lastName': 'Vincent',
-  'company': 'MITROC',
+  'organization': 'MITROC',
   'position': 'VP of Marketing',
   'email': 'hoopervincent@mitroc.com',
   'phone': '+1 (849) 503-2756',
@@ -445,7 +445,7 @@ const accountPayload = {
   'dateOfBirth': '2018-10-01',
   'firstName': 'Hooper',
   'lastName': 'Vincent',
-  'company': 'MITROC',
+  'organization': 'MITROC',
   'position': 'VP of Marketing',
   'email': 'hoopervincent@mitroc.com',
   'phone': '+1 (849) 503-2756',
@@ -458,7 +458,7 @@ const accountUpdateRes = await blocaceUser.updateAccount(accountPayload, account
 ```
 Output:
 ```
-{"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":null,"collectionsWrite":null,"company":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
+{"address":"699 Canton Court, Mulino, South Dakota, 9647","collectionsReadOverride":null,"collectionsWrite":null,"organization":"MITROC","dateOfBirth":"2018-10-01","email":"hoopervincent@mitroc.com","firstName":"Hooper","lastName":"Vincent","phone":"+1 (849) 503-2756","position":"VP of Marketing","publicKey":"04b0a303c71d99ad217c77af1e4d5b85e3ccc3e359d2ac9ff95e042fb0e0016e4d4c25482ba57de472c44c58f6fb124a0ab86613b0dcd1253a23d5ae00180854fa","roleName":"user"}
 ```
 ### `async setAccountReadWrite(permissionPayload, address)`
 Grand collection level read/write permission
@@ -502,7 +502,7 @@ Output:
 	"address": "699 Canton Court, Mulino, South Dakota, 9647",
 	"collectionsReadOverride": null,
 	"collectionsWrite": null,
-	"company": "MITROC",
+	"organization": "MITROC",
 	"dateOfBirth": "2018-10-01",
 	"email": "hoopervincent@mitroc.com",
 	"firstName": "Hooper",
