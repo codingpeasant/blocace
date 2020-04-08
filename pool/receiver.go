@@ -38,7 +38,7 @@ func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signatu
 	}
 
 	newTx := blockchain.NewTransaction(rawData, collection, pubKey, signature, permittedAddresses)
-	r.transactionsBuffer.Add(newTx)
+	r.transactionsBuffer.Append(newTx)
 
 	return true, nil, newTx.ID, nil
 }
@@ -54,7 +54,7 @@ func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permit
 	}
 
 	newTx := blockchain.NewTransaction(rawData, collection, nil, nil, permittedAddresses)
-	r.transactionsBuffer.Add(newTx)
+	r.transactionsBuffer.Append(newTx)
 
 	return nil, nil
 }
@@ -63,10 +63,15 @@ func (r *Receiver) generateBlock() {
 	var candidateTxs []*blockchain.Transaction
 
 	for i := 0; i < r.maxTxsPerBlock && r.transactionsBuffer.Length() > 0; i++ {
-		candidateTxs = append(candidateTxs, r.transactionsBuffer.Remove())
+		tx, ok := interface{}(r.transactionsBuffer.Pop()).(*blockchain.Transaction)
+		if ok {
+			candidateTxs = append(candidateTxs, tx)
+		}
 	}
 
 	if len(candidateTxs) > 0 {
+		log.Debugf("number of txs: %d", len(candidateTxs))
+		log.Debugf("queue len: %d", r.transactionsBuffer.Length())
 		r.blockchain.AddBlock(candidateTxs)
 	}
 }
