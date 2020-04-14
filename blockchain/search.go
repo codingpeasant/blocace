@@ -44,7 +44,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 	defaultIndex, err := bleve.Open(indexDirRoot + "/" + indexDefault)
 
 	if err != nil {
-		log.Infof("cannot (%s): %s. creating the default collection instead...\n", indexDirRoot, err)
+		log.Infof("%s: %s. creating the default collection instead...\n", err, indexDirRoot)
 
 		jsonSchema := `
 		{
@@ -302,7 +302,7 @@ func (s *Search) CreateMappingByJson(mappingJSON []byte) (bleve.Index, error) {
 	}
 
 	if nil != s.BlockchainIndices[documentMapping.Collection] {
-		log.Warnf("The collection " + documentMapping.Collection + " already exists. Nothing to do.")
+		log.Warnf("the collection " + documentMapping.Collection + " already exists. Nothing to do.")
 		return nil, fmt.Errorf("the collection %s already exists. Nothing to do", documentMapping.Collection)
 	}
 

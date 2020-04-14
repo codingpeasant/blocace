@@ -254,7 +254,7 @@ func server() {
 		router.HandleFunc("/bulk/{collection}", httpHandler.HandleTransactionBulk).Methods("POST") // everyone
 	}
 
-	handler := cors.Default().Handler(router)
+	handler := cors.AllowAll().Handler(router)
 
 	server := &http.Server{Addr: ":" + portHttp, Handler: handler}
 
@@ -331,7 +331,7 @@ func generateAdminAccount(db *bolt.DB) {
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Info("the account has been created and registered successfully")
+	log.Info("the admin account has been created and registered successfully")
 
 	fmt.Printf("\n####################\nPRIVATE KEY: %x\nWARNING: THIS PRIVATE KEY ONLY SHOWS ONCE. PLEASE SAVE IT NOW AND KEEP IT SAFE. YOU ARE THE ONLY PERSON THAT IS SUPPOSED TO OWN THIS KEY IN THE WORLD.\n####################\n\n", privKey.D)
 
