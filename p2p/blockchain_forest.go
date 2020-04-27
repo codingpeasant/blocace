@@ -38,11 +38,11 @@ func NewBlockchainForest(bcLocal *blockchain.Blockchain) *BlockchainForest {
 			log.Fatal(err)
 		}
 
-		// add all other indices than the default
+		// initialize all other peer blockchains than the local
 		for _, file := range files {
 			db, err := bolt.Open(peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), 0600, nil)
 			if err != nil {
-				log.Warnf("cannot open blockchain db %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error)
+				log.Warnf("cannot open blockchain db %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error())
 				continue
 			}
 
@@ -55,7 +55,7 @@ func NewBlockchainForest(bcLocal *blockchain.Blockchain) *BlockchainForest {
 			})
 
 			if err != nil {
-				log.Warnf("cannot get tip of blockchain at %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error)
+				log.Warnf("cannot get tip of blockchain at %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error())
 				continue
 			}
 
@@ -67,7 +67,7 @@ func NewBlockchainForest(bcLocal *blockchain.Blockchain) *BlockchainForest {
 			})
 
 			if err != nil {
-				log.Warnf("cannot get peerId of blockchain at %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error)
+				log.Warnf("cannot get peerId of blockchain at %s: %s", peerBlockchainsDirRoot+filepath.Dir("/")+file.Name(), err.Error())
 				continue
 			}
 

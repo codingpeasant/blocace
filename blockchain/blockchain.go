@@ -9,7 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions- t; p2pPrivKey;
+// Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions- t; p2pPrivKey; peerId
 type Blockchain struct {
 	Tip     []byte
 	Db      *bolt.DB
