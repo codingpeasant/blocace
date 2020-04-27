@@ -7,7 +7,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Account represents an end user's information including the public key. Note that these account fields are just a placeholder for convenience to track identity, which doesn't affect the usage of Blocace
+// Account represents an end user's information including the public key. Note that these account fields are just a placeholder for convenience to track identity, which doesn't affect the usage of Blocace.
+// TODO: support ldap or other auth protocols
 type Account struct {
 	DateOfBirth   string `json:"dateOfBirth" validate:"len=10"`
 	FirstName     string `json:"firstName" validate:"nonzero"`

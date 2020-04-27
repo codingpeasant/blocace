@@ -24,7 +24,7 @@ git clone https://github.com/codingpeasant/blocace.git
 cd blocace
 export GO111MODULE=on # Go 1.12 and earlier
 go get
-go build -ldflags="-s -w -X main.version=0.0.1"
+go build -ldflags="-s -w -X main.version=0.0.6"
 ./blocace server
 ```
 

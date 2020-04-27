@@ -1,7 +1,7 @@
 ![logo](https://www.blocace.com/images/blocace-logo.png)
 
 ## Blocace Community Edition
-### v0.0.1
+### v0.0.6
 
 > The generic blockchain for all
 

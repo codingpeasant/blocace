@@ -9,17 +9,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Blockchain keeps a sequence of Blocks
+// Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions- t; p2pPrivKey;
 type Blockchain struct {
 	Tip     []byte
-	cursor  []byte
 	Db      *bolt.DB
-	dataDir string
 	Search  *Search
+	DataDir string
 }
 
 // RegisterAccount persists the account to the storage
-func (bc Blockchain) RegisterAccount(address []byte, account Account) error {
+func (bc *Blockchain) RegisterAccount(address []byte, account Account) error {
 	result := account.Marshal()
 
 	err := bc.Db.Update(func(dbtx *bolt.Tx) error {
@@ -54,7 +53,6 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	bc.Tip, err = newBlock.Persist(bc.Db)
 
 	start := time.Now().UnixNano()
-	log.Debug("number of transactions in the block:" + strconv.FormatInt(int64(newBlock.TotalTransactions), 10))
 	log.Debug("start indexing the block:" + strconv.FormatInt(start, 10))
 	bc.Search.IndexBlock(newBlock)
 	end := time.Now().UnixNano()
@@ -63,27 +61,6 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	if err != nil {
 		log.Error(err)
 	}
-}
-
-// Next returns next block starting from the tip
-func (bc *Blockchain) Next() *Block {
-	var block *Block
-
-	err := bc.Db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BlocksBucket))
-		encodedBlock := b.Get(bc.cursor)
-		block = DeserializeBlock(encodedBlock)
-
-		return nil
-	})
-
-	if err != nil {
-		log.Error(err)
-	}
-
-	bc.cursor = block.PrevBlockHash
-
-	return block
 }
 
 func DbExists(dbFile string) bool {
@@ -119,12 +96,12 @@ func NewBlockchain(dbFile string, dataDir string) *Blockchain {
 		log.Panic(err)
 	}
 
-	bc := Blockchain{tip, tip, db, dataDir, blockchainSearch}
+	bc := Blockchain{tip, db, blockchainSearch, dataDir}
 
 	return &bc
 }
 
-// CreateBlockchain creates a new blockchain DB
+// CreateBlockchain creates a new local blockchain DB
 func CreateBlockchain(dbFile string, dataDir string) *Blockchain {
 	if DbExists(dbFile) {
 		log.Fatal("Blockchain already exists.")
@@ -151,7 +128,7 @@ func CreateBlockchain(dbFile string, dataDir string) *Blockchain {
 		log.Panic(err)
 	}
 
-	bc := Blockchain{tip, tip, db, dataDir, blockchainSearch}
+	bc := Blockchain{tip, db, blockchainSearch, dataDir}
 
 	return &bc
 }

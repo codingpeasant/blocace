@@ -176,6 +176,7 @@ func main() {
 				if !funk.IsEmpty(peerAddresses) {
 					peerAddressesArray = strings.Split(peerAddresses, ",")
 				}
+				// now start Blocace server
 				server()
 				return nil
 			},

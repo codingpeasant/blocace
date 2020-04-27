@@ -79,7 +79,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 	// add all other indices than the default
 	for _, file := range files {
 		if file.Name() != indexDefault {
-			bleveIndex, err := bleve.Open(indexDirRoot + "/" + file.Name())
+			bleveIndex, err := bleve.Open(indexDirRoot + filepath.Dir("/") + file.Name())
 
 			if err != nil {
 				log.Error("cannot add this index: " + err.Error())

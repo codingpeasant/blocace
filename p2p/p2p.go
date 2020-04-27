@@ -23,20 +23,28 @@ var P2PPrivateKeyKey = "p2pPrivKey"
 
 // P2P is the main object to handle networking-related messages
 type P2P struct {
-	Node     *noise.Node
-	overlay  *kademlia.Protocol
-	bc       *blockchain.Blockchain
-	accounts map[string]blockchain.Account
-	mappings map[string]blockchain.DocumentMapping
+	Node             *noise.Node
+	overlay          *kademlia.Protocol
+	blockchainForest *BlockchainForest
+	accounts         map[string]blockchain.Account
+	mappings         map[string]blockchain.DocumentMapping
 }
 
 // BroadcastObject sends a serializable object to all the known peers
 func (p *P2P) BroadcastObject(object noise.Serializable) {
-	// add the accounts to local cache before broadcasting
+	// add the account(s) to local cache before broadcasting
 	accountsToAdd, ok := object.(AccountsP2P)
 	if ok {
 		for address, account := range accountsToAdd.Accounts {
 			p.accounts[address] = account // update the cache
+		}
+	}
+
+	// add the mapping(s) to local cache before broadcasting
+	mappingsToAdd, ok := object.(MappingsP2P)
+	if ok {
+		for collection, mapping := range mappingsToAdd.Mappings {
+			p.mappings[collection] = mapping // update the cache
 		}
 	}
 
@@ -85,8 +93,8 @@ func (p *P2P) SyncAccountsFromPeers() {
 		for address, account := range accountsFromPeer.Accounts {
 			if funk.IsEmpty(p.accounts[address]) || p.accounts[address].LastModified < account.LastModified {
 				p.accounts[address] = account // update the cache
-				log.Debugf("%s(%s) > %+v\n", id.Address, id.ID.String(), account)
-				if err = p.bc.RegisterAccount([]byte(address), account); err != nil {
+				log.Debugf("Account: %s(%s) > %+v\n", id.Address, id.ID.String(), account)
+				if err = p.blockchainForest.local.RegisterAccount([]byte(address), account); err != nil {
 					log.Error(err)
 				}
 			}
@@ -97,7 +105,7 @@ func (p *P2P) SyncAccountsFromPeers() {
 // SyncMappingsFromPeers sends rpc to peers to sync the mappings
 func (p *P2P) SyncMappingsFromPeers() {
 	requestParameters := make(map[string]string)
-	for collectionName, _ := range p.mappings {
+	for collectionName := range p.mappings {
 		requestParameters[collectionName] = collectionName // just mapping names are okay
 	}
 
@@ -123,8 +131,8 @@ func (p *P2P) SyncMappingsFromPeers() {
 		for collectionName, mapping := range mappingsFromPeer.Mappings {
 			if funk.IsEmpty(p.mappings[collectionName]) {
 				p.mappings[collectionName] = mapping // update the cache
-				log.Debugf("%s(%s) > %+v\n", id.Address, id.ID.String(), mapping)
-				if _, err = p.bc.Search.CreateMapping(mapping); err != nil {
+				log.Debugf("Collection: %s(%s) > %+v\n", id.Address, id.ID.String(), mapping)
+				if _, err = p.blockchainForest.local.Search.CreateMapping(mapping); err != nil {
 					log.Error(err)
 				}
 			}
@@ -137,9 +145,12 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	accounts := initializeAccounts(bc.Db)
 	mappings := initializeMappings(bc.Db)
 
+	blockchainForest := NewBlockchainForest(bc)
+
 	var p2pPrivKey noise.PrivateKey
 	var p2pPrivKeyBytes []byte
 
+	// make sure to reuse the priv key if exists
 	err := bc.Db.View(func(dbtx *bolt.Tx) error {
 		bBucket := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 		p2pPrivKeyBytes = bBucket.Get([]byte(P2PPrivateKeyKey))
@@ -203,7 +214,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 			case mappingsRequestType:
 				ctx.SendMessage(handleMappingsRequest(requestP2P, mappings))
 			default:
-				log.Warnf("got unsupported p2p request: +%v", requestP2P)
+				log.Warnf("got unsupported RequestP2P request type: +%v", requestP2P)
 				return nil
 			}
 		}
@@ -271,7 +282,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
 
-	return &P2P{Node: node, overlay: overlay, bc: bc, accounts: accounts, mappings: mappings}
+	return &P2P{Node: node, overlay: overlay, blockchainForest: blockchainForest, accounts: accounts, mappings: mappings}
 }
 
 // bootstrap pings and dials an array of network addresses which we may interact with and  discover peers from.
