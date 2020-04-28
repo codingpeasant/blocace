@@ -160,8 +160,7 @@ func NewBlock(transactions []*Transaction, prevBlockHash []byte, height uint64) 
 // NewGenesisBlock creates and returns genesis block
 func NewGenesisBlock(coinbase *Transaction, db *bolt.DB) *Block {
 	err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(BlocksBucket))
-		_, err = tx.CreateBucket([]byte(TransactionsBucket))
+		_, err := tx.CreateBucket([]byte(TransactionsBucket))
 
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)

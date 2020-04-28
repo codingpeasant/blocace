@@ -16,6 +16,7 @@ import (
 type Transaction struct {
 	ID                 []byte // hash
 	BlockHash          []byte
+	PeerId             []byte // blockchain ID
 	RawData            []byte
 	AcceptedTimestamp  int64
 	Collection         string
@@ -67,14 +68,14 @@ func Sign(privKey ecdsa.PrivateKey, rawDataDigest []byte) []byte {
 }
 
 // NewTransaction creates a new transaction
-func NewTransaction(data []byte, collection string, pubKey []byte, signature []byte, permittedAddresses []string) *Transaction {
-	tx := &Transaction{[]byte{}, []byte{}, data, time.Now().UnixNano() / 1000000, collection, pubKey, signature, permittedAddresses}
+func NewTransaction(peerId []byte, data []byte, collection string, pubKey []byte, signature []byte, permittedAddresses []string) *Transaction {
+	tx := &Transaction{[]byte{}, []byte{}, peerId, data, time.Now().UnixNano() / 1000000, collection, pubKey, signature, permittedAddresses}
 	tx.SetID()
 
 	return tx
 }
 
 // NewCoinbaseTX creates a new coinbase transaction
-func NewCoinbaseTX() *Transaction {
-	return NewTransaction([]byte(genesisCoinbaseRawData), "default", []byte{}, []byte{}, nil)
+func NewCoinbaseTX(peerId []byte) *Transaction {
+	return NewTransaction(peerId, []byte(genesisCoinbaseRawData), "default", []byte{}, []byte{}, nil)
 }

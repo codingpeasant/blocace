@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/perlin-network/noise"
 	log "github.com/sirupsen/logrus"
 )
 
 // Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions- t; p2pPrivKey; peerId
 type Blockchain struct {
 	Tip     []byte
+	PeerId  []byte
 	Db      *bolt.DB
 	Search  *Search
 	DataDir string
@@ -54,7 +56,7 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 
 	start := time.Now().UnixNano()
 	log.Debug("start indexing the block:" + strconv.FormatInt(start, 10))
-	bc.Search.IndexBlock(newBlock)
+	bc.Search.IndexBlock(newBlock, bc.PeerId)
 	end := time.Now().UnixNano()
 	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")
 
@@ -96,7 +98,23 @@ func NewBlockchain(dbFile string, dataDir string) *Blockchain {
 		log.Panic(err)
 	}
 
-	bc := Blockchain{tip, db, blockchainSearch, dataDir}
+	var p2pPrivKey noise.PrivateKey
+	var p2pPrivKeyBytes []byte
+	// make sure to reuse the priv key
+	err = db.View(func(dbtx *bolt.Tx) error {
+		bBucket := dbtx.Bucket([]byte(BlocksBucket))
+		p2pPrivKeyBytes = bBucket.Get([]byte(P2PPrivateKeyKey))
+
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	copy(p2pPrivKey[:], p2pPrivKeyBytes)
+	var publicKey = p2pPrivKey.Public()
+	bc := Blockchain{tip, publicKey[:], db, blockchainSearch, dataDir}
 
 	return &bc
 }
@@ -113,7 +131,26 @@ func CreateBlockchain(dbFile string, dataDir string) *Blockchain {
 		log.Panic(err)
 	}
 
-	cbtx := NewCoinbaseTX()
+	// publicKey is peerId
+	newPublicKey, newPrivateKey, err := noise.GenerateKeys(nil)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	err = db.Update(func(dbtx *bolt.Tx) error {
+		bBucket, err := dbtx.CreateBucket([]byte(BlocksBucket))
+		if err != nil {
+			log.Panic(err)
+		}
+
+		err = bBucket.Put([]byte(P2PPrivateKeyKey), newPrivateKey[:])
+		if err != nil {
+			log.Panic(err)
+		}
+		return nil
+	})
+
+	cbtx := NewCoinbaseTX(newPublicKey[:])
 	genesisBlock := NewGenesisBlock(cbtx, db)
 
 	tip, err = genesisBlock.Persist(db)
@@ -128,7 +165,7 @@ func CreateBlockchain(dbFile string, dataDir string) *Blockchain {
 		log.Panic(err)
 	}
 
-	bc := Blockchain{tip, db, blockchainSearch, dataDir}
+	bc := Blockchain{tip, newPublicKey[:], db, blockchainSearch, dataDir}
 
 	return &bc
 }

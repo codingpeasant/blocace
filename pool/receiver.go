@@ -37,7 +37,7 @@ func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signatu
 		return true, fieldErrorMapping, nil, err
 	}
 
-	newTx := blockchain.NewTransaction(rawData, collection, pubKey, signature, permittedAddresses)
+	newTx := blockchain.NewTransaction(r.blockchain.PeerId, rawData, collection, pubKey, signature, permittedAddresses)
 	r.transactionsBuffer.Append(newTx)
 
 	return true, nil, newTx.ID, nil
@@ -53,7 +53,7 @@ func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permit
 		return fieldErrorMapping, err
 	}
 
-	newTx := blockchain.NewTransaction(rawData, collection, nil, nil, permittedAddresses)
+	newTx := blockchain.NewTransaction(r.blockchain.PeerId, rawData, collection, nil, nil, permittedAddresses)
 	r.transactionsBuffer.Append(newTx)
 
 	return nil, nil

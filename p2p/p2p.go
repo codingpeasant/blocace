@@ -19,7 +19,6 @@ import (
 )
 
 var DefaultPort = 6091
-var P2PPrivateKeyKey = "p2pPrivKey"
 
 // P2P is the main object to handle networking-related messages
 type P2P struct {
@@ -150,33 +149,18 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	var p2pPrivKey noise.PrivateKey
 	var p2pPrivKeyBytes []byte
 
-	// make sure to reuse the priv key if exists
+	// make sure to reuse the priv key
 	err := bc.Db.View(func(dbtx *bolt.Tx) error {
 		bBucket := dbtx.Bucket([]byte(blockchain.BlocksBucket))
-		p2pPrivKeyBytes = bBucket.Get([]byte(P2PPrivateKeyKey))
+		p2pPrivKeyBytes = bBucket.Get([]byte(blockchain.P2PPrivateKeyKey))
 
 		return nil
 	})
 
-	if p2pPrivKeyBytes == nil {
-		_, newPrivateKey, err := noise.GenerateKeys(nil)
-		if err != nil {
-			log.Panic(err)
-		}
-
-		err = bc.Db.Update(func(dbtx *bolt.Tx) error {
-			bBucket := dbtx.Bucket([]byte(blockchain.BlocksBucket))
-			err = bBucket.Put([]byte(P2PPrivateKeyKey), newPrivateKey[:])
-			if err != nil {
-				log.Panic(err)
-			}
-			return nil
-		})
-
-		p2pPrivKey = newPrivateKey
-	} else {
-		copy(p2pPrivKey[:], p2pPrivKeyBytes)
+	if err != nil {
+		log.Panic(err)
 	}
+	copy(p2pPrivKey[:], p2pPrivKeyBytes)
 
 	// Create a new configured node.
 	node, err := noise.NewNode(
@@ -255,10 +239,10 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	// Instantiate Kademlia.
 	events := kademlia.Events{
 		OnPeerAdmitted: func(id noise.ID) {
-			log.Infof("Learned about a new peer %s(%s).\n", id.Address, id.ID.String())
+			log.Infof("learned about a new peer %s(%s).\n", id.Address, id.ID.String())
 		},
 		OnPeerEvicted: func(id noise.ID) {
-			log.Infof("Forgotten a peer %s(%s).\n", id.Address, id.ID.String())
+			log.Infof("forgotten a peer %s(%s).\n", id.Address, id.ID.String())
 		},
 	}
 

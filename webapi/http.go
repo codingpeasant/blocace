@@ -1037,7 +1037,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 				transactionAddress = ""
 			}
 
-			hits = append(hits, blockchain.Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
+			hits = append(hits, blockchain.Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), BlockchainId: fmt.Sprintf("%x", tx.PeerId), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
 
 			return nil
 		})

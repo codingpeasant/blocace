@@ -28,12 +28,13 @@ type Search struct {
 
 // Document represents a document with metadata in the search result
 type Document struct {
-	ID        string `json:"_id"`
-	BlockID   string `json:"_blockId"`
-	Source    string `json:"_source"`
-	Timestamp string `json:"_timestamp"`
-	Signature string `json:"_signature"`
-	Address   string `json:"_address"` // Issuer address
+	ID           string `json:"_id"`
+	BlockID      string `json:"_blockId"`
+	BlockchainId string `json:"_blockchainId"` // peerId
+	Source       string `json:"_source"`
+	Timestamp    string `json:"_timestamp"`
+	Signature    string `json:"_signature"`
+	Address      string `json:"_address"` // Issuer address
 }
 
 // NewSearch create an instance to access the search features
@@ -93,7 +94,7 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 }
 
 // IndexBlock index all the txs in a block
-func (s *Search) IndexBlock(block *Block) {
+func (s *Search) IndexBlock(block *Block, peerId []byte) {
 	var jsonDoc map[string]interface{}
 
 	// using batch index for better performance
@@ -122,6 +123,7 @@ func (s *Search) IndexBlock(block *Block) {
 		jsonDoc["_timestamp"] = time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339)
 		jsonDoc["_publicKey"] = fmt.Sprintf("%x", tx.PubKey)
 		jsonDoc["_id"] = fmt.Sprintf("%x", tx.ID)
+		jsonDoc["_peerId"] = fmt.Sprintf("%x", peerId)
 		jsonDoc["_permittedAddresses"] = tx.PermittedAddresses
 
 		indexBatches[tx.Collection].Index(string(append(append(block.Hash, []byte("_")...), tx.ID...)), jsonDoc)
@@ -229,6 +231,7 @@ func (s *Search) CreateMapping(documentMapping DocumentMapping) (bleve.Index, er
 	collectionSchema.AddFieldMappingsAt("_timestamp", dateTimeFieldMapping)
 	collectionSchema.AddFieldMappingsAt("_type", textFieldMapping)
 	collectionSchema.AddFieldMappingsAt("_id", textFieldMapping) // transaction ID
+	collectionSchema.AddFieldMappingsAt("_peerId", textFieldMapping)
 	collectionSchema.AddFieldMappingsAt("_permittedAddresses", textFieldMapping)
 
 	indexMapping := bleve.NewIndexMapping()
