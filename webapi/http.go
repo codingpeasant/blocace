@@ -31,7 +31,7 @@ import (
 
 // HTTPHandler encapsulates the essential objects to serve http requests
 type HTTPHandler struct {
-	bc      *blockchain.Blockchain
+	bf      *p2p.BlockchainForest
 	r       *pool.Receiver
 	p2p     *p2p.P2P
 	secret  string
@@ -107,7 +107,7 @@ func (h *HTTPHandler) CollectionMappingCreation(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	newIndex, err := h.bc.Search.CreateMappingByJson(mappingBody)
+	newIndex, err := h.bf.Local.Search.CreateMappingByJson(mappingBody)
 	var documentMapping blockchain.DocumentMapping
 
 	if err := json.Unmarshal(mappingBody, &documentMapping); err == nil {
@@ -138,13 +138,13 @@ func (h HTTPHandler) CollectionMappingGet(w http.ResponseWriter, r *http.Request
 	vars := mux.Vars(r)
 	indexName := vars["name"]
 
-	if nil == h.bc.Search.BlockchainIndices[indexName] {
+	if nil == h.bf.Local.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"the collection "+indexName+" doesn't exist\"}", 404)
 		return
 	}
 
 	var indexMapping *blockchain.DocumentMapping
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.CollectionsBucket))
 
 		if b == nil {
@@ -194,7 +194,7 @@ func (h HTTPHandler) CollectionList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var indexNames []string
-	for name := range h.bc.Search.BlockchainIndices {
+	for name := range h.bf.Local.Search.BlockchainIndices {
 		indexNames = append(indexNames, name)
 	}
 
@@ -220,9 +220,9 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 	var lastHeight int
 	var totalTransactionsInt int64
 
-	h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
-		encodedBlock := b.Get(h.bc.Tip)
+		encodedBlock := b.Get(h.bf.Local.Tip)
 		block := blockchain.DeserializeBlock(encodedBlock)
 		lastHeight = int(block.Height)
 
@@ -232,7 +232,7 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 		return nil
 	})
 
-	blockchainInfoJSON, err := json.Marshal(BlockchainInfo{NewestBlockID: fmt.Sprintf("%x", h.bc.Tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt})
+	blockchainInfoJSON, err := json.Marshal(BlockchainInfo{NewestBlockID: fmt.Sprintf("%x", h.bf.Local.Tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt})
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -263,7 +263,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.Search.BlockchainIndices[indexName] {
+	if nil == h.bf.Local.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
@@ -271,7 +271,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 	// check writing permission
 	address := r.Header.Get("address")
 	var account *blockchain.Account
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -390,7 +390,7 @@ func (h HTTPHandler) HandleTransactionBulk(w http.ResponseWriter, r *http.Reques
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.Search.BlockchainIndices[indexName] {
+	if nil == h.bf.Local.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
@@ -497,7 +497,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
@@ -526,7 +526,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err = h.bc.RegisterAccount([]byte(address), account); err != nil {
+	if err = h.bf.Local.RegisterAccount([]byte(address), account); err != nil {
 		http.Error(w, "{\"message\": \"error adding the account: "+err.Error()+"\"}", 400)
 		return
 	}
@@ -587,7 +587,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var oldAccount *blockchain.Account
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -619,7 +619,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 	account.Role = oldAccount.Role
 	account.LastModified = time.Now().UnixNano() / 1000000
 
-	if err = h.bc.RegisterAccount([]byte(address), account); err != nil {
+	if err = h.bf.Local.RegisterAccount([]byte(address), account); err != nil {
 		http.Error(w, "{\"message\": \"error adding the account: "+err.Error()+"\"}", 400)
 		return
 	}
@@ -652,7 +652,7 @@ func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
 
 	var account *blockchain.Account
 
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
@@ -720,7 +720,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 	}
 
 	var account *blockchain.Account
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
@@ -753,7 +753,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 	account.Role = role
 	account.Role.Name = roleName
 
-	if err = h.bc.RegisterAccount([]byte(address), *account); err != nil {
+	if err = h.bf.Local.RegisterAccount([]byte(address), *account); err != nil {
 		http.Error(w, "{\"message\": \"error adding the account: "+err.Error()+"\"}", 400)
 		return
 	}
@@ -782,7 +782,7 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 
 	var block *blockchain.Block
 
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
@@ -836,7 +836,7 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 
 	var block *blockchain.Block
 
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
@@ -866,7 +866,7 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		// Assume bucket exists and has keys
 		c := dbtx.Bucket([]byte(blockchain.TransactionsBucket)).Cursor()
 
@@ -924,7 +924,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	indexName := vars["collection"]
 
-	if nil == h.bc.Search.BlockchainIndices[indexName] {
+	if nil == h.bf.Local.Search.BlockchainIndices[indexName] {
 		http.Error(w, "{\"message\": \"no such collection: "+indexName+"\"}", 404)
 		return
 	}
@@ -947,7 +947,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	// check read overriding permission
 	address := r.Header.Get("address")
 	var account *blockchain.Account
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 		if b == nil {
 			log.WithFields(log.Fields{
@@ -969,6 +969,11 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 		return nil
 	})
+
+	if err != nil {
+		http.Error(w, "{\"message\": \"error running query: "+err.Error()+"\"}", 400)
+		return
+	}
 
 	if !funk.ContainsString(account.CollectionsReadOverride, indexName) {
 		// only addresses in _permittedAddresses can access
@@ -994,7 +999,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	searchRequest.Explain = false
 	// execute the query
-	searchResponse, err := h.bc.Search.BlockchainIndices[indexName].Search(&searchRequest)
+	searchResponse, err := h.bf.Local.Search.BlockchainIndices[indexName].Search(&searchRequest)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"route":   "HandleSearch",
@@ -1006,41 +1011,19 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 
 	hits := []blockchain.Document{}
 	for _, hit := range searchResponse.Hits {
-		h.bc.Db.View(func(dbtx *bolt.Tx) error {
-			// Assume bucket exists and has keys
-			b := dbtx.Bucket([]byte(blockchain.TransactionsBucket))
+		// first search the local blockchain db
+		hitDoc := getTransactionFromDb(h.bf.Local.Db, hit.ID, r.Header.Get("address"))
 
-			v := b.Get([]byte(hit.ID))
-
-			tx := blockchain.DeserializeTransaction(v)
-
-			if err != nil {
-				log.WithFields(log.Fields{
-					"route":   "HandleSearch",
-					"address": r.Header.Get("address"),
-				}).Error("error encoding doc: ", err.Error())
-				return err
+		if !funk.IsEmpty(hitDoc) {
+			hits = append(hits, hitDoc)
+		}
+		// search the peer blockchain dbs
+		for _, peer := range h.bf.Peers {
+			hitDoc := getTransactionFromDb(peer.Db, hit.ID, r.Header.Get("address"))
+			if !funk.IsEmpty(hitDoc) {
+				hits = append(hits, hitDoc)
 			}
-
-			var publicKey *ecdsa.PublicKey
-			var transactionAddress string
-			if tx.PubKey != nil {
-				if publicKey, err = crypto.UnmarshalPubkey(tx.PubKey); err != nil {
-					log.WithFields(log.Fields{
-						"route":   "HandleSearch",
-						"address": r.Header.Get("address"),
-					}).Error("error unmarshal public key bytes: ", err.Error())
-					return err
-				}
-				transactionAddress = crypto.PubkeyToAddress(*publicKey).String()
-			} else {
-				transactionAddress = ""
-			}
-
-			hits = append(hits, blockchain.Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), BlockchainId: fmt.Sprintf("%x", tx.PeerId), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress})
-
-			return nil
-		})
+		}
 	}
 
 	mustEncode(w, SearchResponse{Collection: indexName, Status: searchResponse.Status, Total: searchResponse.Total, Hits: hits})
@@ -1068,7 +1051,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var account *blockchain.Account
-	err = h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
@@ -1136,7 +1119,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account.ChallengeWord = ""
-	if err = h.bc.RegisterAccount([]byte(authPayload.Address), *account); err != nil {
+	if err = h.bf.Local.RegisterAccount([]byte(authPayload.Address), *account); err != nil {
 		log.WithFields(log.Fields{
 			"route":   "HandleJWT",
 			"address": r.Header.Get("address"),
@@ -1166,7 +1149,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var account *blockchain.Account
-	err := h.bc.Db.View(func(dbtx *bolt.Tx) error {
+	err := h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
 
 		if b == nil {
@@ -1183,7 +1166,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleJWTChallenge",
 				"address": r.Header.Get("address"),
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -1192,7 +1175,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleJWTChallenge",
 				"address": r.Header.Get("address"),
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 
@@ -1205,7 +1188,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	account.ChallengeWord = blockchain.RandStringBytesMask(64)
-	if err = h.bc.RegisterAccount([]byte(address), *account); err != nil {
+	if err = h.bf.Local.RegisterAccount([]byte(address), *account); err != nil {
 		http.Error(w, "{\"message\": \"error updating the challenge word: "+err.Error()+"\"}", 500)
 		return
 	}
@@ -1261,7 +1244,45 @@ func processJWT(r *http.Request, requireAdmin bool, secret string) error {
 	return nil
 }
 
+func getTransactionFromDb(db *bolt.DB, hitId string, address string) blockchain.Document {
+	var hitDoc blockchain.Document
+	db.View(func(dbtx *bolt.Tx) error {
+		// Assume bucket exists and has keys
+		b := dbtx.Bucket([]byte(blockchain.TransactionsBucket))
+
+		v := b.Get([]byte(hitId))
+
+		if v == nil {
+			return nil
+		}
+
+		tx := blockchain.DeserializeTransaction(v)
+
+		var publicKey *ecdsa.PublicKey
+		var transactionAddress string
+		var err error
+		if tx.PubKey != nil {
+			if publicKey, err = crypto.UnmarshalPubkey(tx.PubKey); err != nil {
+				log.WithFields(log.Fields{
+					"route":   "HandleSearch",
+					"address": address,
+				}).Error("error unmarshal public key bytes: ", err.Error())
+				return err
+			}
+			transactionAddress = crypto.PubkeyToAddress(*publicKey).String()
+		} else {
+			transactionAddress = ""
+		}
+
+		hitDoc = blockchain.Document{ID: fmt.Sprintf("%x", tx.ID), BlockID: fmt.Sprintf("%x", tx.BlockHash), BlockchainId: fmt.Sprintf("%x", tx.PeerId), Source: fmt.Sprintf("%s", tx.RawData), Timestamp: time.Unix(0, tx.AcceptedTimestamp*int64(time.Millisecond)).Format(time.RFC3339Nano), Signature: fmt.Sprintf("%x", tx.Signature), Address: transactionAddress}
+
+		return nil
+	})
+
+	return hitDoc
+}
+
 // NewHTTPHandler create a new instance of HTTPHandler
-func NewHTTPHandler(b *blockchain.Blockchain, r *pool.Receiver, p *p2p.P2P, secret string, version string) HTTPHandler {
-	return HTTPHandler{b, r, p, secret, version}
+func NewHTTPHandler(bf *p2p.BlockchainForest, r *pool.Receiver, p *p2p.P2P, secret string, version string) HTTPHandler {
+	return HTTPHandler{bf, r, p, secret, version}
 }

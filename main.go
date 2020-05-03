@@ -225,14 +225,14 @@ func server() {
 		generateAdminAccount(bc.Db)
 	}
 
-	r = pool.NewReceiver(bc, maxTxsPerBlock, maxTimeToGenerateBlock)
-	go r.Monitor()
-
 	p := p2p.NewP2P(bc, hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
 	p.SyncAccountsFromPeers()
 	p.SyncMappingsFromPeers()
 
-	httpHandler := webapi.NewHTTPHandler(bc, r, p, secret, version)
+	r = pool.NewReceiver(p, maxTxsPerBlock, maxTimeToGenerateBlock)
+	go r.Monitor()
+
+	httpHandler := webapi.NewHTTPHandler(p.BlockchainForest, r, p, secret, version)
 	router := mux.NewRouter()
 	router.NotFoundHandler = http.HandlerFunc(webapi.ErrorHandler)
 	router.Handle("/", httpHandler)

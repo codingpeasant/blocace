@@ -37,7 +37,7 @@ func (bc *Blockchain) RegisterAccount(address []byte, account Account) error {
 }
 
 // AddBlock saves provided data as a block in the blockchain
-func (bc *Blockchain) AddBlock(txs []*Transaction) {
+func (bc *Blockchain) AddBlock(txs []*Transaction) *Block {
 	var lastHash []byte
 	var lastHeight []byte
 
@@ -54,15 +54,17 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) {
 	newBlock := NewBlock(txs, lastHash, uint64(lastHeightInt+1))
 	bc.Tip, err = newBlock.Persist(bc.Db)
 
+	if err != nil {
+		log.Error(err)
+	}
+
 	start := time.Now().UnixNano()
 	log.Debug("start indexing the block:" + strconv.FormatInt(start, 10))
 	bc.Search.IndexBlock(newBlock, bc.PeerId)
 	end := time.Now().UnixNano()
 	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")
 
-	if err != nil {
-		log.Error(err)
-	}
+	return newBlock
 }
 
 func DbExists(dbFile string) bool {

@@ -12,12 +12,13 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/codingpeasant/blocace/blockchain"
+	"github.com/codingpeasant/blocace/p2p"
 )
 
 // Receiver represents the front door for the incoming transactions
 type Receiver struct {
 	transactionsBuffer     *Queue
-	blockchain             *blockchain.Blockchain
+	p2p                    *p2p.P2P
 	maxTxsPerBlock         int
 	maxTimeToGenerateBlock int
 }
@@ -37,7 +38,7 @@ func (r *Receiver) Put(rawData []byte, collection string, pubKey []byte, signatu
 		return true, fieldErrorMapping, nil, err
 	}
 
-	newTx := blockchain.NewTransaction(r.blockchain.PeerId, rawData, collection, pubKey, signature, permittedAddresses)
+	newTx := blockchain.NewTransaction(r.p2p.BlockchainForest.Local.PeerId, rawData, collection, pubKey, signature, permittedAddresses)
 	r.transactionsBuffer.Append(newTx)
 
 	return true, nil, newTx.ID, nil
@@ -53,7 +54,7 @@ func (r *Receiver) PutWithoutSignature(rawData []byte, collection string, permit
 		return fieldErrorMapping, err
 	}
 
-	newTx := blockchain.NewTransaction(r.blockchain.PeerId, rawData, collection, nil, nil, permittedAddresses)
+	newTx := blockchain.NewTransaction(r.p2p.BlockchainForest.Local.PeerId, rawData, collection, nil, nil, permittedAddresses)
 	r.transactionsBuffer.Append(newTx)
 
 	return nil, nil
@@ -70,9 +71,16 @@ func (r *Receiver) generateBlock() {
 	}
 
 	if len(candidateTxs) > 0 {
-		log.Debugf("number of txs: %d", len(candidateTxs))
-		log.Debugf("queue len: %d", r.transactionsBuffer.Length())
-		r.blockchain.AddBlock(candidateTxs)
+		newBlock := r.p2p.BlockchainForest.Local.AddBlock(candidateTxs)
+		// broadcast to peers
+		var transactions []blockchain.Transaction
+		for _, tx := range newBlock.Transactions {
+			transactions = append(transactions, *tx)
+		}
+
+		r.p2p.BroadcastObject(p2p.BlockP2P{PeerId: r.p2p.BlockchainForest.Local.PeerId, Timestamp: newBlock.Timestamp,
+			PrevBlockHash: newBlock.Hash, Height: newBlock.Height, Hash: newBlock.Hash,
+			TotalTransactions: newBlock.TotalTransactions, Transactions: transactions})
 	}
 }
 
@@ -98,7 +106,7 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 	}
 
 	var documentMapping *blockchain.DocumentMapping
-	err = r.blockchain.Db.View(func(dbtx *bolt.Tx) error {
+	err = r.p2p.BlockchainForest.Local.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.CollectionsBucket))
 
 		if b == nil {
@@ -215,6 +223,6 @@ func (r Receiver) checkMapping(rawData []byte, collection string) (map[string]st
 }
 
 // NewReceiver creates an instance of Receiver
-func NewReceiver(bc *blockchain.Blockchain, maxTxsPerBlock int, maxTimeToGenerateBlock int) *Receiver {
-	return &Receiver{transactionsBuffer: NewQueue(), blockchain: bc, maxTxsPerBlock: maxTxsPerBlock, maxTimeToGenerateBlock: maxTimeToGenerateBlock}
+func NewReceiver(p2p *p2p.P2P, maxTxsPerBlock int, maxTimeToGenerateBlock int) *Receiver {
+	return &Receiver{transactionsBuffer: NewQueue(), p2p: p2p, maxTxsPerBlock: maxTxsPerBlock, maxTimeToGenerateBlock: maxTimeToGenerateBlock}
 }
