@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -25,7 +26,18 @@ type BlockchainForest struct {
 // AddBlockBroadcasted persist the broadcasted new block from a peer to local peer blockchain db and index it
 func (b *BlockchainForest) AddBlockBroadcasted(blockP2p BlockP2P) {
 	peerIdStr := fmt.Sprintf("%x", blockP2p.PeerId)
-	block := blockP2p.MapToBlock()
+
+	block, err := blockP2p.MapToBlock()
+
+	if err != nil {
+		log.Error(err)
+		return
+	}
+
+	if bytes.Compare(block.Hash, block.SetHash()) != 0 {
+		log.Errorf("block hash verification failed, abandon this block")
+		return
+	}
 
 	if b.Peers[peerIdStr] == nil {
 		log.Infof("peer %s blockchain db not found, creating one...", peerIdStr)
@@ -59,13 +71,13 @@ func (b *BlockchainForest) AddBlockBroadcasted(blockP2p BlockP2P) {
 
 	}
 
-	_, err := block.Persist(b.Peers[peerIdStr].Db)
+	_, err = block.Persist(b.Peers[peerIdStr].Db)
 	if err != nil {
 		log.Error(err)
 	}
 
 	start := time.Now().UnixNano()
-	log.Debugf("start indexing the block: %d for peer blockchain %s...", start, peerIdStr)
+	log.Debugf("start indexing the block at %d for peer blockchain %s...", start, peerIdStr)
 	b.Local.Search.IndexBlock(block, blockP2p.PeerId)
 	end := time.Now().UnixNano()
 	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")

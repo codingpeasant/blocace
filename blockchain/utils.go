@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"math/rand"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -82,4 +83,26 @@ func PublicKeyToAddress(publicKeyBytes []byte) (string, error) {
 		return "", err
 	}
 	return crypto.PubkeyToAddress(*publicKey).String(), nil
+}
+
+// implement `Interface` in sort package.
+type sortByteArrays [][]byte
+
+func (b sortByteArrays) Len() int {
+	return len(b)
+}
+
+func (b sortByteArrays) Less(i, j int) bool {
+	return bytes.Compare(b[i], b[j]) < 0
+}
+
+func (b sortByteArrays) Swap(i, j int) {
+	b[j], b[i] = b[i], b[j]
+}
+
+// SortByteArrays sorts the slice of byte arrays
+func SortByteArrays(src [][]byte) [][]byte {
+	sorted := sortByteArrays(src)
+	sort.Sort(sorted)
+	return sorted
 }

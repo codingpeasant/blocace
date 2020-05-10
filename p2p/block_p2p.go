@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 
@@ -33,17 +34,22 @@ func (b BlockP2P) Marshal() []byte {
 	return result.Bytes()
 }
 
-// MapToBlock convert a BlockP2P object to blockchain.Block
-func (b BlockP2P) MapToBlock() *blockchain.Block {
+// MapToBlock verified each transaction in the BlockP2P on wire and convert it to blockchain.Block
+func (b BlockP2P) MapToBlock() (*blockchain.Block, error) {
 	var transactions []*blockchain.Transaction
 
 	// cannot use range here because the memory address for elements being iterated is always the same one
 	for i := 0; i < len(b.Transactions); i++ {
-		transactions = append(transactions, &b.Transactions[i])
+		if blockchain.IsValidSig(b.Transactions[i].RawData, b.Transactions[i].PubKey, b.Transactions[i].Signature) {
+			transactions = append(transactions, &b.Transactions[i])
+		} else {
+			transactions = nil
+			return nil, fmt.Errorf("transaction signature verification failed, abandon this block")
+		}
 	}
 
 	return &blockchain.Block{Timestamp: b.Timestamp, PrevBlockHash: b.PrevBlockHash,
-		Height: b.Height, Hash: b.Hash, TotalTransactions: b.TotalTransactions, Transactions: transactions}
+		Height: b.Height, Hash: b.Hash, TotalTransactions: b.TotalTransactions, Transactions: transactions}, nil
 }
 
 // unmarshalBlockP2P deserializes encoded bytes to BlockP2P object

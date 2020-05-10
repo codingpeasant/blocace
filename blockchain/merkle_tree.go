@@ -23,6 +23,9 @@ type MerkleNode struct {
 func NewMerkleTree(txHashes [][]byte) *MerkleTree {
 	var nodes []MerkleNode
 
+	// sort the slice to make sure creating the unique merkle tree
+	txHashes = SortByteArrays(txHashes)
+
 	if len(txHashes)%2 != 0 {
 		txHashes = append(txHashes, txHashes[len(txHashes)-1])
 	}

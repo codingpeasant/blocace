@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve"
@@ -21,6 +22,7 @@ const indexDefault = "default"
 
 // Search encapsulates all the indices with search engine features
 type Search struct {
+	sync.Mutex
 	db                *bolt.DB
 	indexDirRoot      string
 	BlockchainIndices map[string]bleve.Index
@@ -90,11 +92,13 @@ func NewSearch(db *bolt.DB, dataDir string) (*Search, error) {
 		}
 	}
 
-	return &Search{db, indexDirRoot, blockchainIndices}, nil
+	return &Search{db: db, indexDirRoot: indexDirRoot, BlockchainIndices: blockchainIndices}, nil
 }
 
 // IndexBlock index all the txs in a block
 func (s *Search) IndexBlock(block *Block, peerId []byte) {
+	s.Lock()
+	defer s.Unlock()
 	var jsonDoc map[string]interface{}
 
 	// using batch index for better performance
