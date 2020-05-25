@@ -17,6 +17,7 @@ type BlockP2P struct {
 	PrevBlockHash     []byte
 	Height            uint64
 	Hash              []byte
+	IsTip             bool
 	TotalTransactions int
 	Transactions      []blockchain.Transaction
 }
@@ -40,7 +41,9 @@ func (b BlockP2P) MapToBlock() (*blockchain.Block, error) {
 
 	// cannot use range here because the memory address for elements being iterated is always the same one
 	for i := 0; i < len(b.Transactions); i++ {
-		if blockchain.IsValidSig(b.Transactions[i].RawData, b.Transactions[i].PubKey, b.Transactions[i].Signature) {
+		if bytes.Compare(b.Transactions[i].Signature, []byte{}) == 0 { // skipping for genisis transation and bulk loading
+			transactions = append(transactions, &b.Transactions[i])
+		} else if blockchain.IsValidSig(b.Transactions[i].RawData, b.Transactions[i].PubKey, b.Transactions[i].Signature) {
 			transactions = append(transactions, &b.Transactions[i])
 		} else {
 			transactions = nil

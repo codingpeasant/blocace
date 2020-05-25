@@ -198,7 +198,7 @@ func (s *Search) CreateMapping(documentMapping DocumentMapping) (bleve.Index, er
 	booleanFieldMapping := bleve.NewBooleanFieldMapping()
 	booleanFieldMapping.Store = false
 
-	// a generic reusable mapping for boolean
+	// a generic reusable mapping for geopoint
 	geoPointFieldMapping := bleve.NewGeoPointFieldMapping()
 	geoPointFieldMapping.Store = false
 

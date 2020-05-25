@@ -39,8 +39,8 @@ var advertiseAddress string
 var peerAddresses string
 var peerAddressesArray []string
 var bulkLoading string
-var version string
 var loglevel string
+var version string // build-time variable
 
 func init() {
 	fmt.Printf(`
@@ -219,6 +219,11 @@ func server() {
 	if blockchain.DbExists(dbFile) {
 		log.Info("db file exists.")
 		bc = blockchain.NewBlockchain(dbFile, dataDir)
+
+		if !bc.IsComplete() {
+			log.Errorf("local blockchain verification failed. exiting...")
+			os.Exit(1)
+		}
 	} else {
 		log.Info("cannot find the db file. creating new...")
 		bc = blockchain.CreateBlockchain(dbFile, dataDir)
@@ -226,8 +231,11 @@ func server() {
 	}
 
 	p := p2p.NewP2P(bc, hostP2p, uint16(portP2p), advertiseAddress, peerAddressesArray...)
-	p.SyncAccountsFromPeers()
 	p.SyncMappingsFromPeers()
+	time.Sleep(200 * time.Millisecond) // wait for p2p connection to release before sending another request
+	p.SyncAccountsFromPeers()
+	time.Sleep(200 * time.Millisecond)
+	p.SyncPeerBlockchains()
 
 	r = pool.NewReceiver(p, maxTxsPerBlock, maxTimeToGenerateBlock)
 	go r.Monitor()
@@ -238,14 +246,14 @@ func server() {
 	router.Handle("/", httpHandler)
 	router.HandleFunc("/jwt", httpHandler.HandleJWT).Methods("POST", "GET")
 	router.HandleFunc("/jwt/challenge/{address}", httpHandler.JWTChallenge).Methods("GET")
-	router.HandleFunc("/info", httpHandler.HandleInfo).Methods("GET")                                // user
-	router.HandleFunc("/block/{blockId}", httpHandler.HandleBlockInfo).Methods("GET")                // user
-	router.HandleFunc("/verification/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
-	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")       // user
-	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")       // user
-	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")          // admin
-	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                     // user
-	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")         // user
+	router.HandleFunc("/info", httpHandler.HandleInfo).Methods("GET")                                               // user
+	router.HandleFunc("/block/{blockchainId}/{blockId}", httpHandler.HandleBlockInfo).Methods("GET")                // user
+	router.HandleFunc("/verification/{blockchainId}/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user
+	router.HandleFunc("/search/{collection}", httpHandler.HandleSearch).Methods("POST", "GET")                      // user
+	router.HandleFunc("/document/{collection}", httpHandler.HandleTransaction).Methods("POST")                      // user
+	router.HandleFunc("/collection", httpHandler.CollectionMappingCreation).Methods("POST")                         // admin
+	router.HandleFunc("/collections", httpHandler.CollectionList).Methods("GET")                                    // user
+	router.HandleFunc("/collection/{name}", httpHandler.CollectionMappingGet).Methods("GET")                        // user
 	router.HandleFunc("/account", httpHandler.AccountRegistration).Methods("POST")
 	router.HandleFunc("/account/{address}", httpHandler.AccountUpdate).Methods("POST")                    // admin
 	router.HandleFunc("/account/{address}", httpHandler.AccountGet).Methods("GET")                        // user
@@ -267,7 +275,7 @@ func server() {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	sigs := make(chan os.Signal, 1)
+	sigs := make(chan os.Signal)
 	done := make(chan bool)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

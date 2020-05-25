@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"os"
 	"strconv"
 	"time"
@@ -10,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions- t; p2pPrivKey; peerId
+// Blockchain keeps a sequence of Blocks. Blockchain DB keys: lastHash - l; lastHeight - b; totalTransactions - t; p2pPrivKey; peerId
 type Blockchain struct {
 	Tip     []byte
 	PeerId  []byte
@@ -52,7 +53,7 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) *Block {
 	lastHeightInt, err := strconv.ParseInt(string(lastHeight), 10, 64)
 
 	newBlock := NewBlock(txs, lastHash, uint64(lastHeightInt+1))
-	bc.Tip, err = newBlock.Persist(bc.Db)
+	bc.Tip, err = newBlock.Persist(bc.Db, true)
 
 	if err != nil {
 		log.Error(err)
@@ -65,6 +66,50 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) *Block {
 	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")
 
 	return newBlock
+}
+
+// IsComplete iterate all the blocks of a blockchain to check its completeness
+func (bc *Blockchain) IsComplete() bool {
+	isComplete := false
+	err := bc.Db.View(func(dbtx *bolt.Tx) error {
+		bBucket := dbtx.Bucket([]byte(BlocksBucket))
+
+		height := bBucket.Get([]byte("b"))
+		heightInt, err := strconv.Atoi(string(height))
+
+		if err != nil {
+			log.Errorf("cannot get blockchain height: %s", err)
+			return err
+		}
+
+		var currentBlock *Block
+		i := 0
+		currentBlockHash := bc.Tip
+		for ; i <= heightInt; i++ {
+			currentBlockBytes := bBucket.Get(currentBlockHash)
+			if currentBlockBytes != nil {
+				currentBlock = DeserializeBlock(currentBlockBytes)
+			} else {
+				log.Errorf("cannot find block: %x", currentBlockHash)
+				break
+			}
+			currentBlockHash = currentBlock.PrevBlockHash
+		}
+
+		if i == heightInt+1 && bytes.Compare(currentBlockHash, []byte{}) == 0 {
+			isComplete = true
+		} else {
+			log.Errorf("blockchain height and genesis block don't match - lastHeight: %d; lastHash: %x", i, currentBlockHash)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return false
+	}
+
+	return isComplete
 }
 
 func DbExists(dbFile string) bool {
@@ -155,7 +200,7 @@ func CreateBlockchain(dbFile string, dataDir string) *Blockchain {
 	cbtx := NewCoinbaseTX(newPublicKey[:])
 	genesisBlock := NewGenesisBlock(cbtx, db)
 
-	tip, err = genesisBlock.Persist(db)
+	tip, err = genesisBlock.Persist(db, true)
 
 	if err != nil {
 		log.Panic(err)

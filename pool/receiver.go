@@ -80,7 +80,7 @@ func (r *Receiver) generateBlock() {
 
 		r.p2p.BroadcastObject(p2p.BlockP2P{PeerId: r.p2p.BlockchainForest.Local.PeerId, Timestamp: newBlock.Timestamp,
 			PrevBlockHash: newBlock.PrevBlockHash, Height: newBlock.Height, Hash: newBlock.Hash,
-			TotalTransactions: newBlock.TotalTransactions, Transactions: transactions})
+			TotalTransactions: newBlock.TotalTransactions, IsTip: true, Transactions: transactions})
 	}
 }
 

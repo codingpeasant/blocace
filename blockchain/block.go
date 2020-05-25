@@ -63,7 +63,7 @@ func (b *Block) GetMerkleTree() *MerkleTree {
 }
 
 // Persist stores the block with the transactions to DB
-func (b Block) Persist(db *bolt.DB) ([]byte, error) {
+func (b Block) Persist(db *bolt.DB, isTip bool) ([]byte, error) {
 	var currentTxTotal []byte
 	var currentTxTotalInt int64
 
@@ -107,9 +107,10 @@ func (b Block) Persist(db *bolt.DB) ([]byte, error) {
 			}
 		}
 
-		err = bBucket.Put([]byte("l"), b.Hash)
-
-		err = bBucket.Put([]byte("b"), []byte(fmt.Sprint(b.Height)))
+		if isTip { // only update tip and height if this is a tip block (local or peer)
+			err = bBucket.Put([]byte("l"), b.Hash)
+			err = bBucket.Put([]byte("b"), []byte(fmt.Sprint(b.Height)))
+		}
 
 		err = bBucket.Put([]byte("t"), []byte(fmt.Sprint(int64(b.TotalTransactions)+currentTxTotalInt)))
 

@@ -7,8 +7,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const accountsRequestType = "accounts"
-const mappingsRequestType = "mappings"
+const accountsRequestType = "accounts" // address:lastModified
+const mappingsRequestType = "mappings" // collecionName:collectionName
+const blockRequestType = "block"       // peerId:blockId or local:[tip or blockId] (don't support multiple key-value pairs yet)
 
 // RequestP2P represents common p2p request body
 type RequestP2P struct {

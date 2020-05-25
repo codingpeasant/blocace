@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -48,7 +50,7 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 	}
 
 	for _, id := range p.overlay.Table().Peers() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		err := p.Node.SendMessage(ctx, id.Address, object)
 		cancel()
 
@@ -65,77 +67,22 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 
 // SyncAccountsFromPeers sends rpc to peers to sync the accounts
 func (p *P2P) SyncAccountsFromPeers() {
-	requestParameters := make(map[string]string)
-	for address, account := range p.accounts {
-		requestParameters[address] = strconv.Itoa(int(account.LastModified))
-	}
-
 	for _, id := range p.overlay.Table().Peers() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		accountsFromPeerRes, err := p.Node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: accountsRequestType, RequestParameters: requestParameters})
-		cancel()
-
-		if err != nil {
-			log.Errorf("failed to send account request message to %s(%s). Skipping... [error: %s]\n",
-				id.Address,
-				id.ID.String(),
-				err,
-			)
-			continue
-		}
-
-		accountsFromPeer, ok := accountsFromPeerRes.(AccountsP2P)
-		if !ok {
-			log.Error("cannot parse account from peer: " + id.ID.String())
-		}
-
-		for address, account := range accountsFromPeer.Accounts {
-			if funk.IsEmpty(p.accounts[address]) || p.accounts[address].LastModified < account.LastModified {
-				p.accounts[address] = account // update the cache
-				log.Debugf("Account: %s(%s) > %+v\n", id.Address, id.ID.String(), account)
-				if err = p.BlockchainForest.Local.RegisterAccount([]byte(address), account); err != nil {
-					log.Error(err)
-				}
-			}
-		}
+		sendAccountsRequest(p.accounts, p.Node, id, p.BlockchainForest.Local)
 	}
 }
 
 // SyncMappingsFromPeers sends rpc to peers to sync the mappings
 func (p *P2P) SyncMappingsFromPeers() {
-	requestParameters := make(map[string]string)
-	for collectionName := range p.mappings {
-		requestParameters[collectionName] = collectionName // just mapping names are okay
-	}
-
 	for _, id := range p.overlay.Table().Peers() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		mappingsFromPeerRes, err := p.Node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: mappingsRequestType, RequestParameters: requestParameters})
-		cancel()
+		sendMappingsRequest(p.mappings, p.Node, id, p.BlockchainForest.Local.Search)
+	}
+}
 
-		if err != nil {
-			log.Errorf("failed to send mapping request message to %s(%s). Skipping... [error: %s]\n",
-				id.Address,
-				id.ID.String(),
-				err,
-			)
-			continue
-		}
-
-		mappingsFromPeer, ok := mappingsFromPeerRes.(MappingsP2P)
-		if !ok {
-			log.Error("cannot parse mappings from peer: " + id.ID.String())
-		}
-
-		for collectionName, mapping := range mappingsFromPeer.Mappings {
-			if funk.IsEmpty(p.mappings[collectionName]) {
-				p.mappings[collectionName] = mapping // update the cache
-				log.Debugf("Collection: %s(%s) > %+v\n", id.Address, id.ID.String(), mapping)
-				if _, err = p.BlockchainForest.Local.Search.CreateMapping(mapping); err != nil {
-					log.Error(err)
-				}
-			}
-		}
+// SyncPeerBlockchains sends rpc to all known peers to sync the peer blockchains to local
+func (p *P2P) SyncPeerBlockchains() {
+	for _, id := range p.overlay.Table().Peers() {
+		syncPeerBlockchain(p.Node, id, p.BlockchainForest, false) // startup sync, not reverse sync
 	}
 }
 
@@ -196,43 +143,54 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 			switch requestP2P.RequestType {
 			case accountsRequestType:
 				ctx.SendMessage(handleAccountsRequest(requestP2P, accounts))
+				accountsRequestReverse(requestP2P, accounts, node, ctx.ID(), blockchainForest.Local) // sync new accounts from remote
 			case mappingsRequestType:
 				ctx.SendMessage(handleMappingsRequest(requestP2P, mappings))
+				mappingsRequestReverse(requestP2P, mappings, node, ctx.ID(), blockchainForest.Local.Search) // sync new mappings from remote
+			case blockRequestType:
+				ctx.SendMessage(handleBlockRequest(requestP2P, blockchainForest))
+				// reversely sync the blockchain but don't reverse the reverse
+				if requestP2P.RequestParameters["local"] == "tip" && requestP2P.RequestParameters["reverse"] != "reverse" {
+					syncPeerBlockchain(node, ctx.ID(), blockchainForest, true)
+				}
 			default:
 				log.Warnf("got unsupported RequestP2P request type: +%v", requestP2P)
 				return nil
 			}
-		}
 
-		obj, err := ctx.DecodeMessage()
-		if err != nil {
-			return err
-		}
+		} else {
+			obj, err := ctx.DecodeMessage()
+			if err != nil {
+				return err
+			}
 
-		switch objectP2p := obj.(type) {
-		case AccountsP2P:
-			for address, account := range objectP2p.Accounts {
-				if funk.IsEmpty(accounts[address]) || accounts[address].LastModified < account.LastModified {
-					accounts[address] = account // update the cache
-					if err = bc.RegisterAccount([]byte(address), account); err != nil {
-						return err
+			switch objectP2p := obj.(type) {
+			case AccountsP2P:
+				for address, account := range objectP2p.Accounts {
+					if funk.IsEmpty(accounts[address]) || accounts[address].LastModified < account.LastModified {
+						accounts[address] = account // update the cache
+						if err = bc.RegisterAccount([]byte(address), account); err != nil {
+							return err
+						}
 					}
 				}
-			}
-		case MappingsP2P:
-			for mappingName, mapping := range objectP2p.Mappings {
-				if funk.IsEmpty(mappings[mappingName]) {
-					mappings[mappingName] = mapping // update the cache
-					if _, err = bc.Search.CreateMapping(mapping); err != nil {
-						return err
+			case MappingsP2P:
+				for mappingName, mapping := range objectP2p.Mappings {
+					if funk.IsEmpty(mappings[mappingName]) {
+						mappings[mappingName] = mapping // update the cache
+						if _, err = bc.Search.CreateMapping(mapping); err != nil {
+							return err
+						}
 					}
 				}
+			case BlockP2P:
+				log.Debugf("BlockFromPeer: %s(%s) > %+x; height: %d\n", ctx.ID().Address, ctx.ID().ID.String(), objectP2p.Hash, objectP2p.Height)
+				blockchainForest.AddBlock(objectP2p)
+			case RequestP2P:
+				ctx.SendMessage(handleBlockRequest(objectP2p, blockchainForest))
+			default:
+				return errors.New("cannot parse the object from peer: " + ctx.ID().ID.String())
 			}
-		case BlockP2P:
-			log.Debugf("%s(%s) > Total transactions: %d\n", ctx.ID().Address, ctx.ID().ID.String(), objectP2p.TotalTransactions)
-			blockchainForest.AddBlockBroadcasted(objectP2p)
-		default:
-			return errors.New("cannot parse the object from peer: " + ctx.ID().ID.String())
 		}
 
 		return nil
@@ -241,10 +199,10 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	// Instantiate Kademlia.
 	events := kademlia.Events{
 		OnPeerAdmitted: func(id noise.ID) {
-			log.Infof("learned about a new peer %s(%s).\n", id.Address, id.ID.String())
+			log.Infof("learned about a new peer %s (%s).\n", id.Address, id.ID.String())
 		},
 		OnPeerEvicted: func(id noise.ID) {
-			log.Infof("forgotten a peer %s(%s).\n", id.Address, id.ID.String())
+			log.Infof("forgotten a peer %s (%s).\n", id.Address, id.ID.String())
 		},
 	}
 
@@ -291,7 +249,7 @@ func discover(overlay *kademlia.Protocol) {
 
 	var str []string
 	for _, id := range ids {
-		str = append(str, fmt.Sprintf("%s(%s)", id.Address, id.ID.String()))
+		str = append(str, fmt.Sprintf("%s (%s)", id.Address, id.ID.String()))
 	}
 
 	if len(ids) > 0 {
@@ -346,7 +304,7 @@ func handleAccountsRequest(request RequestP2P, accountsLocal map[string]blockcha
 			accountsToSend[address] = account
 		} else {
 			peerLastModified, err := strconv.ParseInt(request.RequestParameters[address], 10, 64)
-			if err == nil {
+			if err != nil {
 				continue
 			}
 			if account.LastModified > peerLastModified {
@@ -371,4 +329,197 @@ func handleMappingsRequest(request RequestP2P, mappingsLocal map[string]blockcha
 	}
 
 	return MappingsP2P{Mappings: mappingsToSend}
+}
+
+// handleBlockRequest handles 1) local tip block; 2) local block; 3) peer block
+func handleBlockRequest(request RequestP2P, bf *BlockchainForest) BlockP2P {
+	var blockToReturn BlockP2P
+	if !funk.IsEmpty(request.RequestParameters["local"]) {
+		requestValue := request.RequestParameters["local"]
+		if requestValue == "tip" {
+			blockToReturn = bf.GetBlock(bf.Local.PeerId, bf.Local.Tip, false)
+			blockToReturn.IsTip = true // mark as tip for peer to process
+
+		} else {
+			blockId, err := hex.DecodeString(requestValue)
+			if err != nil {
+				log.Error(err)
+				return blockToReturn
+			}
+			blockToReturn = bf.GetBlock(bf.Local.PeerId, blockId, false)
+		}
+
+	} else {
+		for peerIdString, blockIdString := range request.RequestParameters { // should be only one round
+
+			blockId, err := hex.DecodeString(blockIdString)
+			peerId, err := hex.DecodeString(peerIdString)
+			if err != nil {
+				log.Error(err)
+				return blockToReturn
+			}
+			blockToReturn = bf.GetBlock(peerId, blockId, false)
+		}
+	}
+
+	return blockToReturn
+}
+
+// mappingsRequestReverse checks if a peer has mapping(s) that is new and request for them
+func mappingsRequestReverse(request RequestP2P, mappingsLocal map[string]blockchain.DocumentMapping, node *noise.Node, id noise.ID, search *blockchain.Search) {
+	for _, mapping := range request.RequestParameters {
+		if mapping == "default" {
+			continue
+		}
+
+		if funk.IsEmpty(mappingsLocal[mapping]) {
+			sendMappingsRequest(mappingsLocal, node, id, search)
+			break
+		}
+	}
+}
+
+// accountsRequestReverse checks if a peer has accounts(s) that is new and request for them
+func accountsRequestReverse(request RequestP2P, accountsLocal map[string]blockchain.Account, node *noise.Node, id noise.ID, bcLocal *blockchain.Blockchain) {
+	for address, peerLastModified := range request.RequestParameters {
+		if funk.IsEmpty(accountsLocal[address]) {
+			sendAccountsRequest(accountsLocal, node, id, bcLocal)
+			break
+		} else {
+			peerLastModifiedLong, err := strconv.ParseInt(peerLastModified, 10, 64)
+			if err != nil {
+				continue
+			}
+			if peerLastModifiedLong > accountsLocal[address].LastModified {
+				sendAccountsRequest(accountsLocal, node, id, bcLocal)
+				break
+			}
+		}
+	}
+}
+
+// syncPeerBlockchain sends rpc to a peer to sync the peer blockchain to local
+func syncPeerBlockchain(node *noise.Node, id noise.ID, bf *BlockchainForest, reverse bool) {
+	log.Infof("start syncing blocks from peer %s (%s)...", id.Address, id.ID.String())
+	// first update the tip
+	requestParameters := make(map[string]string)
+	requestParameters["local"] = "tip"
+	if reverse {
+		requestParameters["reverse"] = "reverse" // distinguish between startup sync and reverse sync
+	}
+
+	previousBlockHash := sendBlockRequest(requestParameters, node, id, bf)
+
+	// check blocks
+	var previousBlock BlockP2P
+	// until genesis block is reached or cannot find previous
+	for bytes.Compare(previousBlockHash, []byte{}) != 0 {
+		previousBlock = bf.GetBlock(id.ID[:], previousBlockHash, true)
+		if !funk.IsEmpty(previousBlock) {
+			previousBlockHash = previousBlock.PrevBlockHash
+		} else {
+			requestParameters["local"] = fmt.Sprintf("%x", previousBlockHash)
+			previousBlockHash = sendBlockRequest(requestParameters, node, id, bf)
+		}
+	}
+	log.Infof("finished syncing from peer %s (%s)", id.Address, id.ID.String())
+}
+
+// sendMappingsRequest and update local mapping cache
+func sendMappingsRequest(mappingsLocal map[string]blockchain.DocumentMapping, node *noise.Node, id noise.ID, search *blockchain.Search) {
+	requestParameters := make(map[string]string)
+	for collectionName := range mappingsLocal {
+		requestParameters[collectionName] = collectionName // collectionName:collectionName
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	mappingsFromPeerRes, err := node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: mappingsRequestType, RequestParameters: requestParameters})
+	cancel()
+
+	if err != nil {
+		log.Errorf("failed to send mapping request message to %s(%s). Skipping... [error: %s]\n",
+			id.Address,
+			id.ID.String(),
+			err,
+		)
+		return
+	}
+
+	mappingsFromPeer, ok := mappingsFromPeerRes.(MappingsP2P)
+	if !ok {
+		log.Error("cannot parse mappings from peer: " + id.ID.String())
+	}
+
+	for collectionName, mapping := range mappingsFromPeer.Mappings {
+		if funk.IsEmpty(mappingsLocal[collectionName]) {
+			mappingsLocal[collectionName] = mapping // update the cache
+			log.Debugf("Collection: %s(%s) > %+v\n", id.Address, id.ID.String(), mapping)
+			if _, err = search.CreateMapping(mapping); err != nil {
+				log.Error(err)
+			}
+		}
+	}
+
+}
+
+// sendAccountsRequest and update local accounts cache
+func sendAccountsRequest(accountsLocal map[string]blockchain.Account, node *noise.Node, id noise.ID, bcLocal *blockchain.Blockchain) {
+	requestParameters := make(map[string]string)
+	for address, account := range accountsLocal {
+		if account.Role.Name != "admin" {
+			requestParameters[address] = strconv.Itoa(int(account.LastModified)) // address:lastModified
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	accountsFromPeerRes, err := node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: accountsRequestType, RequestParameters: requestParameters})
+	cancel()
+
+	if err != nil {
+		log.Errorf("failed to send account request message to %s(%s). Skipping... [error: %s]\n",
+			id.Address,
+			id.ID.String(),
+			err,
+		)
+	}
+
+	accountsFromPeer, ok := accountsFromPeerRes.(AccountsP2P)
+	if !ok {
+		log.Error("cannot parse accounts from peer: " + id.ID.String())
+	}
+
+	for address, account := range accountsFromPeer.Accounts {
+		if funk.IsEmpty(accountsLocal[address]) || accountsLocal[address].LastModified < account.LastModified {
+			accountsLocal[address] = account // update the cache
+			log.Debugf("Account: %s(%s) > %+v\n", id.Address, id.ID.String(), account)
+			if err = bcLocal.RegisterAccount([]byte(address), account); err != nil {
+				log.Error(err)
+			}
+		}
+	}
+}
+
+// sendBlockRequest and update peer blockchain locally
+func sendBlockRequest(requestParameters map[string]string, node *noise.Node, id noise.ID, bf *BlockchainForest) []byte {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	blockFromPeerRes, err := node.RequestMessage(ctx, id.Address, RequestP2P{RequestType: blockRequestType, RequestParameters: requestParameters})
+	cancel()
+
+	if err != nil {
+		log.Warnf("failed to send block request message to %s(%s). retrying... [error: %s]\n",
+			id.Address,
+			id.ID.String(),
+			err,
+		)
+		return sendBlockRequest(requestParameters, node, id, bf)
+	}
+
+	blockFromPeer, ok := blockFromPeerRes.(BlockP2P)
+	if !ok {
+		log.Error("cannot parse block from peer: " + id.ID.String())
+	}
+	log.Debugf("BlockFromPeer: %s(%s) > %+x; height: %d\n", id.Address, id.ID.String(), blockFromPeer.Hash, blockFromPeer.Height)
+
+	bf.AddBlock(blockFromPeer)
+	return blockFromPeer.PrevBlockHash
 }

@@ -40,15 +40,17 @@ type HTTPHandler struct {
 
 // BlockchainInfo has current status information about the whole blockchain
 type BlockchainInfo struct {
-	NewestBlockID     string `json:"newestBlockId"`
+	BlockchainId      string `json:"blockchainId"`
+	TipBlockId        string `json:"tipBlockId"`
 	LastHeight        int    `json:"lastHeight"`
 	TotalTransactions int64  `json:"totalTransactions"`
 }
 
 // BlockInfo has information about a certain block
 type BlockInfo struct {
-	BlockID           string `json:"blockId"`
-	LastBlockID       string `json:"lastBlockId"`
+	BlockchainId      string `json:"blockchainId"`
+	BlockId           string `json:"blockId"`
+	PrevBlockId       string `json:"prevBlockId"`
 	BlockHeight       uint64 `json:"blockHeight"`
 	TotalTransactions int    `json:"totalTransactions"`
 }
@@ -217,22 +219,14 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var lastHeight int
-	var totalTransactionsInt int64
+	var peerBlockchains []BlockchainInfo
 
-	h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
-		encodedBlock := b.Get(h.bf.Local.Tip)
-		block := blockchain.DeserializeBlock(encodedBlock)
-		lastHeight = int(block.Height)
+	peerBlockchains = append(peerBlockchains, getBlockchainInfo(h.bf.Local))
+	for _, peerChain := range h.bf.Peers {
+		peerBlockchains = append(peerBlockchains, getBlockchainInfo(peerChain))
+	}
 
-		totalTransactions := b.Get([]byte("t"))
-		totalTransactionsInt, _ = strconv.ParseInt(string(totalTransactions), 10, 64)
-
-		return nil
-	})
-
-	blockchainInfoJSON, err := json.Marshal(BlockchainInfo{NewestBlockID: fmt.Sprintf("%x", h.bf.Local.Tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt})
+	blockchainInfoJSON, err := json.Marshal(peerBlockchains)
 
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -286,7 +280,7 @@ func (h *HTTPHandler) HandleTransaction(w http.ResponseWriter, r *http.Request) 
 			log.WithFields(log.Fields{
 				"route":   "HandleTransaction",
 				"address": address,
-			}).Info("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -602,7 +596,7 @@ func (h *HTTPHandler) AccountUpdate(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "AccountUpdate",
 				"address": address,
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		oldAccount = blockchain.DeserializeAccount(encodedAccount)
@@ -669,7 +663,7 @@ func (h HTTPHandler) AccountGet(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "AccountGet",
 				"address": address,
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -736,7 +730,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 			log.WithFields(log.Fields{
 				"route":   "SetAccountReadWrite",
 				"address": address,
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -771,18 +765,29 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// find the index to operate on
 	vars := mux.Vars(r)
-	blockID, err := hex.DecodeString(vars["blockId"])
+	blockId, err := hex.DecodeString(vars["blockId"])
 
 	if err != nil {
 		http.Error(w, "{\"message\": \"invalid block ID\"}", 400)
 		return
 	}
 
+	blockchainPeer, err := getBlockchainById(h.bf, vars["blockchainId"])
+
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if blockchainPeer == nil {
+		http.Error(w, "{\"message\": \"blockchain doesn't exist\"}", 404)
+		return
+	}
+
 	var block *blockchain.Block
 
-	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
+	err = blockchainPeer.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
@@ -793,7 +798,7 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 			return errors.New("block doesn't exist")
 		}
 
-		encodedBlock := b.Get(blockID)
+		encodedBlock := b.Get(blockId)
 
 		if encodedBlock == nil {
 			log.WithFields(log.Fields{
@@ -811,7 +816,7 @@ func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blockInfoResponse := BlockInfo{BlockID: fmt.Sprintf("%x", block.Hash), LastBlockID: fmt.Sprintf("%x", block.PrevBlockHash), BlockHeight: block.Height, TotalTransactions: block.TotalTransactions}
+	blockInfoResponse := BlockInfo{BlockchainId: vars["blockchainId"], BlockId: fmt.Sprintf("%x", block.Hash), PrevBlockId: fmt.Sprintf("%x", block.PrevBlockHash), BlockHeight: block.Height, TotalTransactions: block.TotalTransactions}
 
 	mustEncode(w, blockInfoResponse)
 }
@@ -834,9 +839,19 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	blockchainPeer, err := getBlockchainById(h.bf, vars["blockchainId"])
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	if blockchainPeer == nil {
+		http.Error(w, "{\"message\": \"blockchain doesn't exist\"}", 404)
+		return
+	}
+
 	var block *blockchain.Block
 
-	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
+	err = blockchainPeer.Db.View(func(dbtx *bolt.Tx) error {
 		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
 
 		if b == nil {
@@ -866,7 +881,7 @@ func (h HTTPHandler) HandleMerklePath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
+	blockchainPeer.Db.View(func(dbtx *bolt.Tx) error {
 		// Assume bucket exists and has keys
 		c := dbtx.Bucket([]byte(blockchain.TransactionsBucket)).Cursor()
 
@@ -962,7 +977,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleSearch",
 				"address": address,
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -1068,7 +1083,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleJWT",
 				"address": r.Header.Get("address"),
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 		account = blockchain.DeserializeAccount(encodedAccount)
@@ -1077,7 +1092,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 			log.WithFields(log.Fields{
 				"route":   "HandleJWT",
 				"address": r.Header.Get("address"),
-			}).Error("account doesn't exist")
+			}).Warn("account doesn't exist")
 			return errors.New("account doesn't exist")
 		}
 
@@ -1280,6 +1295,42 @@ func getTransactionFromDb(db *bolt.DB, hitId string, address string) blockchain.
 	})
 
 	return hitDoc
+}
+
+func getBlockchainInfo(peerChain *blockchain.Blockchain) BlockchainInfo {
+	var lastHeight int
+	var totalTransactionsInt int64
+
+	peerChain.Db.View(func(dbtx *bolt.Tx) error {
+		b := dbtx.Bucket([]byte(blockchain.BlocksBucket))
+		encodedBlock := b.Get(peerChain.Tip)
+		block := blockchain.DeserializeBlock(encodedBlock)
+		lastHeight = int(block.Height)
+
+		totalTransactions := b.Get([]byte("t"))
+		totalTransactionsInt, _ = strconv.ParseInt(string(totalTransactions), 10, 64)
+
+		return nil
+	})
+
+	return BlockchainInfo{BlockchainId: fmt.Sprintf("%x", peerChain.PeerId), TipBlockId: fmt.Sprintf("%x", peerChain.Tip), LastHeight: lastHeight, TotalTransactions: totalTransactionsInt}
+}
+
+func getBlockchainById(bf *p2p.BlockchainForest, blockchainId string) (*blockchain.Blockchain, error) {
+	blockchainIdBytes, err := hex.DecodeString(blockchainId)
+
+	if err != nil {
+		return nil, fmt.Errorf("{\"message\": \"invalid blockchain ID: %s\"}", blockchainId)
+	}
+
+	var blockchainPeer *blockchain.Blockchain
+	if bytes.Compare(bf.Local.PeerId, blockchainIdBytes) == 0 {
+		blockchainPeer = bf.Local
+	} else {
+		blockchainPeer = bf.Peers[blockchainId]
+	}
+
+	return blockchainPeer, nil
 }
 
 // NewHTTPHandler create a new instance of HTTPHandler
