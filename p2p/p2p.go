@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -63,6 +64,17 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 			continue
 		}
 	}
+}
+
+//
+func (p *P2P) GetPeers() []byte {
+	var peers []noise.ID
+	for _, peer := range p.overlay.Table().Peers() {
+		peers = append(peers, peer)
+	}
+	peersJSON, _ := json.Marshal(peers)
+
+	return peersJSON
 }
 
 // SyncAccountsFromPeers sends rpc to peers to sync the accounts

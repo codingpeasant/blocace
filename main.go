@@ -246,6 +246,7 @@ func server() {
 	router.Handle("/", httpHandler)
 	router.HandleFunc("/jwt", httpHandler.HandleJWT).Methods("POST", "GET")
 	router.HandleFunc("/jwt/challenge/{address}", httpHandler.JWTChallenge).Methods("GET")
+	router.HandleFunc("/peers", httpHandler.HandlePeers).Methods("GET")                                             // user
 	router.HandleFunc("/info", httpHandler.HandleInfo).Methods("GET")                                               // user
 	router.HandleFunc("/block/{blockchainId}/{blockId}", httpHandler.HandleBlockInfo).Methods("GET")                // user
 	router.HandleFunc("/verification/{blockchainId}/{blockId}/{txId}", httpHandler.HandleMerklePath).Methods("GET") // user

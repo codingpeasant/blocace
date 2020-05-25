@@ -240,6 +240,25 @@ func (h HTTPHandler) HandleInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(blockchainInfoJSON)
 }
 
+// HandlePeers returns all the alive peers of the current node
+func (h HTTPHandler) HandlePeers(w http.ResponseWriter, r *http.Request) {
+	err := processJWT(r, false, h.secret)
+	if err != nil {
+		http.Error(w, "{\"message\": \""+err.Error()+"\"}", 401)
+		return
+	}
+
+	peers := h.p2p.GetPeers()
+	if bytes.Compare(peers, []byte("null")) == 0 {
+		http.Error(w, "{\"message\": \"no live peers\"}", 404)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(peers)
+}
+
 // HandleTransaction put and index new transaction
 // {
 //     "rawDocument": "{\"id\":\"10001\",\"message\":\"Send 10000 BTC to Ivan\"}",
@@ -757,7 +776,7 @@ func (h HTTPHandler) SetAccountReadWrite(w http.ResponseWriter, r *http.Request)
 	fmt.Fprintf(w, "{\"message\": \"account permission updated\", \"address\": \"%s\"}", address)
 }
 
-// HandleBlockInfo returns an account's information for a given address
+// HandleBlockInfo returns the general information of a blockchain's block
 func (h HTTPHandler) HandleBlockInfo(w http.ResponseWriter, r *http.Request) {
 	err := processJWT(r, false, h.secret)
 	if err != nil {
