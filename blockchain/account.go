@@ -10,18 +10,17 @@ import (
 // Account represents an end user's information including the public key. Note that these account fields are just a placeholder for convenience to track identity, which doesn't affect the usage of Blocace.
 // TODO: support ldap or other auth protocols
 type Account struct {
-	DateOfBirth   string `json:"dateOfBirth" validate:"len=10"`
-	FirstName     string `json:"firstName" validate:"nonzero"`
-	LastName      string `json:"lastName" validate:"nonzero"`
-	Organization  string `json:"organization" validate:"nonzero"`
-	Position      string `json:"position" validate:"nonzero"`
-	Email         string `json:"email" validate:"min=6,max=80"`
-	Phone         string `json:"phone" validate:"min=6,max=40"`
-	Address       string `json:"address" validate:"min=10,max=140"`
-	PublicKey     string `json:"publicKey" validate:"len=128"`
-	ChallengeWord string `json:"challengeWord"`
-	Role          `json:"role"`
-	LastModified  int64 `json:"lastModified"`
+	DateOfBirth  string `json:"dateOfBirth" validate:"len=10"`
+	FirstName    string `json:"firstName" validate:"nonzero"`
+	LastName     string `json:"lastName" validate:"nonzero"`
+	Organization string `json:"organization" validate:"nonzero"`
+	Position     string `json:"position" validate:"nonzero"`
+	Email        string `json:"email" validate:"min=6,max=80"`
+	Phone        string `json:"phone" validate:"min=6,max=40"`
+	Address      string `json:"address" validate:"min=10,max=140"`
+	PublicKey    string `json:"publicKey" validate:"len=128"`
+	Role         `json:"role"`
+	LastModified int64 `json:"lastModified"`
 }
 
 // Role represents the rights of access to collections and API endpoints

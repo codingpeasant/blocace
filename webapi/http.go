@@ -20,6 +20,7 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
+	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"github.com/thoas/go-funk"
 	validator "gopkg.in/validator.v2"
@@ -86,6 +87,13 @@ type TransactionBulkCreationResponse struct {
 	Accepted          int               `json:"accepted"`
 	Dropped           int               `json:"dropped"`
 	FieldErrorMapping map[string]string `json:"fieldErrors"`
+}
+
+// AuthPayload defines the data for HTTP clients should provide to obtain a JWT
+type AuthPayload struct {
+	Signature     string `json:"signature"`
+	Address       string `json:"address"`
+	ChallengeWord string `json:"challengeWord"`
 }
 
 func (h HTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -1066,6 +1074,7 @@ func (h HTTPHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 // HandleJWT checks the credentials and return corresponding JWT
 // {
 // 	"address": "0x07322C5A59047c09e87C284503F64f7FdDD17aBd",
+//  "challengeWord": "R7be38YqgP74w4U2jpOVgXfQWqkjQyNGiHhHpuRSVVDeUVPs8DDcgbzz3fbFll9o"
 // 	"signature": "6b2064ddf73f7b96559ecae424b3b657d1daf62078305e92af991c22e04808d476e8161ec7be58324b662042965a9935de8fb697eb3df7afad5d1885f129f666"
 // }
 func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
@@ -1077,49 +1086,17 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse the request
-	var authPayload TransactionPayload // reuse TransactionPayload for simplicity
+	var authPayload AuthPayload
 	err = json.Unmarshal(transactionBody, &authPayload)
 	if err != nil {
 		http.Error(w, "{\"message\": \"error parsing the payload: "+err.Error()+"\"}", 400)
 		return
 	}
 
-	var account *blockchain.Account
-	err = h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
+	account := h.p2p.Accounts[authPayload.Address]
 
-		if b == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWT",
-				"address": r.Header.Get("address"),
-			}).Warn("bucket doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-
-		encodedAccount := b.Get([]byte(authPayload.Address))
-
-		if encodedAccount == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWT",
-				"address": r.Header.Get("address"),
-			}).Warn("account doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-		account = blockchain.DeserializeAccount(encodedAccount)
-
-		if account == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWT",
-				"address": r.Header.Get("address"),
-			}).Warn("account doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, "{\"message\": \"couldn't find the account: "+err.Error()+"\"}", 404)
+	if funk.IsEmpty(account) {
+		http.Error(w, "{\"message\": \"couldn't find the account: "+authPayload.Address+"\"}", 404)
 		return
 	}
 
@@ -1129,8 +1106,9 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(account.ChallengeWord) == 0 {
-		http.Error(w, "{\"message\": \"no challenge word available\"}", 404)
+	addressInCache, found := h.p2p.ChallengeWordsCache.Get(authPayload.ChallengeWord)
+	if !found || addressInCache != authPayload.Address {
+		http.Error(w, "{\"message\": \"cannot find the challenge word\"}", 404)
 		return
 	}
 
@@ -1140,7 +1118,7 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isValidSig := blockchain.IsValidSig([]byte(account.ChallengeWord), publicKey, signatureBytes)
+	isValidSig := blockchain.IsValidSig([]byte(authPayload.ChallengeWord), publicKey, signatureBytes)
 	if !isValidSig {
 		http.Error(w, "{\"message\": \"signature invalid\"}", 400)
 		return
@@ -1149,16 +1127,6 @@ func (h HTTPHandler) HandleJWT(w http.ResponseWriter, r *http.Request) {
 	token, err := issueToken(authPayload.Address, account.Role, h.secret)
 	if err != nil {
 		http.Error(w, "{\"message\": \"couldn't issue jwt: "+err.Error()+"\"}", 500)
-		return
-	}
-
-	account.ChallengeWord = ""
-	if err = h.bf.Local.RegisterAccount([]byte(authPayload.Address), *account); err != nil {
-		log.WithFields(log.Fields{
-			"route":   "HandleJWT",
-			"address": r.Header.Get("address"),
-		}).Error("error reset challenge word: " + err.Error())
-		http.Error(w, "{\"message\": \"internal error: "+err.Error()+"\"}", 500)
 		return
 	}
 
@@ -1182,54 +1150,19 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var account *blockchain.Account
-	err := h.bf.Local.Db.View(func(dbtx *bolt.Tx) error {
-		b := dbtx.Bucket([]byte(blockchain.AccountsBucket))
-
-		if b == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWTChallenge",
-				"address": r.Header.Get("address"),
-			}).Warn("bucket doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-
-		encodedAccount := b.Get([]byte(address))
-
-		if encodedAccount == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWTChallenge",
-				"address": r.Header.Get("address"),
-			}).Warn("account doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-		account = blockchain.DeserializeAccount(encodedAccount)
-
-		if account == nil {
-			log.WithFields(log.Fields{
-				"route":   "HandleJWTChallenge",
-				"address": r.Header.Get("address"),
-			}).Warn("account doesn't exist")
-			return errors.New("account doesn't exist")
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		http.Error(w, "{\"message\": \"couldn't find the account: "+err.Error()+"\"}", 404)
+	account := h.p2p.Accounts[address]
+	if funk.IsEmpty(account) {
+		http.Error(w, "{\"message\": \"couldn't find the account: "+address+"\"}", 404)
 		return
 	}
 
-	account.ChallengeWord = blockchain.RandStringBytesMask(64)
-	if err = h.bf.Local.RegisterAccount([]byte(address), *account); err != nil {
-		http.Error(w, "{\"message\": \"error updating the challenge word: "+err.Error()+"\"}", 500)
-		return
-	}
+	challengeWord := blockchain.RandStringBytesMask(64)
+	h.p2p.ChallengeWordsCache.Set(challengeWord, address, cache.DefaultExpiration)
+	h.p2p.BroadcastObject(p2p.ChallengeWordP2P{challengeWord, address})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "{\"message\": \"challenge word created\", \"challenge\": \"%s\"}", account.ChallengeWord)
+	fmt.Fprintf(w, "{\"message\": \"challenge word created\", \"challenge\": \"%s\"}", challengeWord)
 }
 
 // ErrorHandler handles non-existing route

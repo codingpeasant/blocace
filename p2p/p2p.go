@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
+	"github.com/patrickmn/go-cache"
 	"github.com/perlin-network/noise"
 	"github.com/perlin-network/noise/kademlia"
 	log "github.com/sirupsen/logrus"
@@ -25,11 +26,12 @@ var DefaultPort = 6091
 
 // P2P is the main object to handle networking-related messages
 type P2P struct {
-	Node             *noise.Node
-	BlockchainForest *BlockchainForest
-	overlay          *kademlia.Protocol
-	accounts         map[string]blockchain.Account
-	mappings         map[string]blockchain.DocumentMapping
+	Node                *noise.Node
+	BlockchainForest    *BlockchainForest
+	ChallengeWordsCache *cache.Cache
+	overlay             *kademlia.Protocol
+	Accounts            map[string]blockchain.Account // used by http
+	mappings            map[string]blockchain.DocumentMapping
 }
 
 // BroadcastObject sends a serializable object to all the known peers
@@ -38,7 +40,7 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 	accountsToAdd, ok := object.(AccountsP2P)
 	if ok {
 		for address, account := range accountsToAdd.Accounts {
-			p.accounts[address] = account // update the cache
+			p.Accounts[address] = account // update the cache
 		}
 	}
 
@@ -80,7 +82,7 @@ func (p *P2P) GetPeers() []byte {
 // SyncAccountsFromPeers sends rpc to peers to sync the accounts
 func (p *P2P) SyncAccountsFromPeers() {
 	for _, id := range p.overlay.Table().Peers() {
-		sendAccountsRequest(p.accounts, p.Node, id, p.BlockchainForest.Local)
+		sendAccountsRequest(p.Accounts, p.Node, id, p.BlockchainForest.Local)
 	}
 }
 
@@ -104,6 +106,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	mappings := initializeMappings(bc.Db)
 
 	blockchainForest := NewBlockchainForest(bc)
+	challengeWordsCache := cache.New(30*time.Second, 1*time.Minute)
 
 	var p2pPrivKey noise.PrivateKey
 	var p2pPrivKeyBytes []byte
@@ -137,6 +140,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	node.RegisterMessage(RequestP2P{}, unmarshalRequestP2P)
 	node.RegisterMessage(AccountsP2P{}, unmarshalAccountsP2P)
 	node.RegisterMessage(MappingsP2P{}, unmarshalMappingsP2P)
+	node.RegisterMessage(ChallengeWordP2P{}, unmarshalChallengeWordP2P)
 	node.RegisterMessage(BlockP2P{}, unmarshalBlockP2P)
 
 	// Register a message handler to the node.
@@ -195,6 +199,10 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 						}
 					}
 				}
+			case ChallengeWordP2P:
+				if funk.IsEmpty(objectP2p.Address) && funk.IsEmpty(objectP2p.ChallengeWord) {
+					challengeWordsCache.Set(objectP2p.ChallengeWord, objectP2p.Address, cache.DefaultExpiration)
+				}
 			case BlockP2P:
 				log.Debugf("BlockFromPeer: %s(%s) > %+x; height: %d\n", ctx.ID().Address, ctx.ID().ID.String(), objectP2p.Hash, objectP2p.Height)
 				blockchainForest.AddBlock(objectP2p)
@@ -238,7 +246,7 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
 
-	return &P2P{Node: node, overlay: overlay, BlockchainForest: blockchainForest, accounts: accounts, mappings: mappings}
+	return &P2P{Node: node, overlay: overlay, BlockchainForest: blockchainForest, ChallengeWordsCache: challengeWordsCache, Accounts: accounts, mappings: mappings}
 }
 
 // bootstrap pings and dials an array of network addresses which we may interact with and  discover peers from.

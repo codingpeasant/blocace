@@ -13,6 +13,7 @@ require (
 	github.com/etcd-io/bbolt v1.3.3 // indirect
 	github.com/ethereum/go-ethereum v1.9.10
 	github.com/gorilla/mux v1.7.3
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/perlin-network/noise v1.1.3
 	github.com/rs/cors v1.7.0
 	github.com/satori/go.uuid v1.2.0
