@@ -535,7 +535,7 @@ func (h *HTTPHandler) AccountRegistration(w http.ResponseWriter, r *http.Request
 			log.WithFields(log.Fields{
 				"route":   "HandleAccountRegistration",
 				"address": address,
-			}).Error("account exists already")
+			}).Warn("account exists already")
 			return errors.New("account exists already")
 		}
 
@@ -1158,7 +1158,7 @@ func (h HTTPHandler) JWTChallenge(w http.ResponseWriter, r *http.Request) {
 
 	challengeWord := blockchain.RandStringBytesMask(64)
 	h.p2p.ChallengeWordsCache.Set(challengeWord, address, cache.DefaultExpiration)
-	h.p2p.BroadcastObject(p2p.ChallengeWordP2P{challengeWord, address})
+	h.p2p.BroadcastObject(p2p.ChallengeWordP2P{ChallengeWord: challengeWord, Address: address})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

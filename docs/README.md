@@ -61,7 +61,7 @@ $ node ./example.js b9fd4594474e95cbcd1501ee9197b418e93c5b03bf578b1501b05c57f360
 ```
 That's it. You have successfully built Blocace server and accessed *ALL* its web APIs using the Blocace Javascript client.
 
-## Step-by-step breakdown of example.js
+# Step-by-step breakdown of example.js
 > If you'd like to know more about the APIs, please continue reading.
 
 ### Setup root account
@@ -243,7 +243,7 @@ Sign each of the documents with the new user's private key and send them to Bloc
 ### Verify the integrity of the documents
 ```javascript
 // verify if the transaction is included in the block (by block merkle tree rebuild)
-const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockId, queryRes.hits[0]._id)
+const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockchainId, queryRes.hits[0]._blockId, queryRes.hits[0]._id)
 console.log('Document included in the block: ' + verificationPassed + '\n')
 
 // verify signature
@@ -634,27 +634,27 @@ Output:
 	}]
 }
 ```
-### `async verifyTransaction(blockId, transationId)`
+### `async verifyTransaction(blockchainId, blockId, transationId)`
 Obtain a copy of block [Merkle Tree](https://en.wikipedia.org/wiki/Merkle_tree) and verify if the target document adding transaction has been included in the blockchain
 
 Example:
 ```
-const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockId, queryRes.hits[0]._id)
+const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockchainId, queryRes.hits[0]._blockId, queryRes.hits[0]._id)
 ```
 
-### `async getBlockInfo(blockId)`
+### `async getBlockInfo(blockchainId, blockId)`
 Get the information of a target block
 
 Example:
 ```
-const blockRes = await blocace.getBlockInfo(queryRes.hits[0]._blockId)
+const blockRes = await blocace.getBlockInfo(queryRes.hits[0]._blockchainId, queryRes.hits[0]._blockId)
 ```
 Output:
 ```
 {"blockId":"cfc01dc667753185a5635b33ebbff42b452476f15a4f63fceb210aad68dac3b8","lastBlockId":"47e7023f02c4f762d458e674ce1075666e47cafa93a701b6cb88615c6b4f6dc5","blockHeight":1,"totalTransactions":10}
 ```
 ### `async getBlockchainInfo()`
-Get the information of the whole blockchain
+Get the information of all the chains in the network
 
 Example:
 ```
@@ -662,7 +662,50 @@ const blockchainRes = await blocace.getBlockchainInfo()
 ```
 Output:
 ```
-{"newestBlockId":"cfc01dc667753185a5635b33ebbff42b452476f15a4f63fceb210aad68dac3b8","lastHeight":1,"totalTransactions":11}
+[
+    {
+        "blockchainId": "bcfe7d257e28f656937b16b93448ebae57107e1536730c61600655a640194037",
+        "tipBlockId": "86ccbffe9aac977eead58ff60d65d3d79022e6e191caf6bd3deffa5a1fffee4b",
+        "lastHeight": 1,
+        "totalTransactions": 11
+    },
+    {
+        "blockchainId": "3cb1b5a4e3d6a5482e83381d747104e4e8ad6c78d7202760764079cc82b66bca",
+        "tipBlockId": "b82ebc9e8e9eda31606c37c8772dd4c8b42c68579c149a34a0676dadce200ca4",
+        "lastHeight": 5,
+        "totalTransactions": 3001
+    },
+    {
+        "blockchainId": "53388a5926ccc8ec4a6a129ea57fe0b86ffee6a1c033e6aca820e26d0e0c418c",
+        "tipBlockId": "84a558c5a59b16711adc91cd7716775756c39a7475d0a06d1aedf89574eba9cf",
+        "lastHeight": 0,
+        "totalTransactions": 1
+    }
+]
+```
+### `async getPeers()`
+et the basic information of the alive peers known to node that the client currently talks to
+
+Example:
+```
+const peerRes = await blocace.getPeers()
+```
+Output:
+```
+[
+    {
+        "public_key": "3cb1b5a4e3d6a5482e83381d747104e4e8ad6c78d7202760764079cc82b66bca",
+        "address": "::",
+        "Port": 16091,
+        "Address": ":16091"
+    },
+    {
+        "public_key": "53388a5926ccc8ec4a6a129ea57fe0b86ffee6a1c033e6aca820e26d0e0c418c",
+        "address": "::",
+        "Port": 26091,
+        "Address": ":26091"
+    }
+]
 ```
 ### `async getCollections()`
 Get all the collections in the blockchain
