@@ -38,7 +38,7 @@ func (bc *Blockchain) RegisterAccount(address []byte, account Account) error {
 }
 
 // AddBlock saves provided data as a block in the blockchain
-func (bc *Blockchain) AddBlock(txs []*Transaction) *Block {
+func (bc *Blockchain) AddBlock(txs []*Transaction) []byte {
 	var lastHash []byte
 	var lastHeight []byte
 
@@ -65,7 +65,7 @@ func (bc *Blockchain) AddBlock(txs []*Transaction) *Block {
 	end := time.Now().UnixNano()
 	log.Debug("end indexing the block:" + strconv.FormatInt(end, 10) + ", duration:" + strconv.FormatInt((end-start)/1000000, 10) + "ms")
 
-	return newBlock
+	return newBlock.Hash
 }
 
 // IsComplete iterate all the blocks of a blockchain to check its completeness

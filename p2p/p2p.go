@@ -23,6 +23,7 @@ import (
 )
 
 var DefaultPort = 6091
+var PingIntervalInMs = 3000
 
 // P2P is the main object to handle networking-related messages
 type P2P struct {
@@ -68,7 +69,7 @@ func (p *P2P) BroadcastObject(object noise.Serializable) {
 	}
 }
 
-//
+// GetPeers returns currently know peers in json format
 func (p *P2P) GetPeers() []byte {
 	var peers []noise.ID
 	for _, peer := range p.overlay.Table().Peers() {
@@ -245,6 +246,29 @@ func NewP2P(bc *blockchain.Blockchain, bindHost string, bindPort uint16, adverti
 	} else {
 		log.Info("no peer address(es) provided, starting without trying to discover")
 	}
+
+	// remove stale peers
+	go func() {
+		ticker := time.NewTicker(time.Duration(PingIntervalInMs) * time.Millisecond)
+
+		for range ticker.C {
+			var peersAlive []noise.ID
+			for _, id := range overlay.Table().Peers() {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				client, _ := node.Ping(ctx, id.Address)
+				cancel()
+				if client != nil {
+					peersAlive = append(peersAlive, client.ID())
+				}
+			}
+
+			for _, id := range overlay.Table().Peers() {
+				if !funk.Contains(peersAlive, id) {
+					overlay.Table().Delete(id.ID)
+				}
+			}
+		}
+	}()
 
 	return &P2P{Node: node, overlay: overlay, BlockchainForest: blockchainForest, ChallengeWordsCache: challengeWordsCache, Accounts: accounts, mappings: mappings}
 }

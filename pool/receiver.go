@@ -71,16 +71,9 @@ func (r *Receiver) generateBlock() {
 	}
 
 	if len(candidateTxs) > 0 {
-		newBlock := r.p2p.BlockchainForest.Local.AddBlock(candidateTxs)
-		// broadcast to peers
-		var transactions []blockchain.Transaction
-		for _, tx := range newBlock.Transactions {
-			transactions = append(transactions, *tx)
-		}
-
-		r.p2p.BroadcastObject(p2p.BlockP2P{PeerId: r.p2p.BlockchainForest.Local.PeerId, Timestamp: newBlock.Timestamp,
-			PrevBlockHash: newBlock.PrevBlockHash, Height: newBlock.Height, Hash: newBlock.Hash,
-			TotalTransactions: newBlock.TotalTransactions, IsTip: true, Transactions: transactions})
+		newBlockHash := r.p2p.BlockchainForest.Local.AddBlock(candidateTxs)
+		r.p2p.BlockchainForest.GetBlock(r.p2p.BlockchainForest.Local.PeerId, newBlockHash, false)
+		r.p2p.BroadcastObject(r.p2p.BlockchainForest.GetBlock(r.p2p.BlockchainForest.Local.PeerId, newBlockHash, false))
 	}
 }
 

@@ -145,30 +145,6 @@ func TestQueueThreadSafety2(t *testing.T) {
 	wg.Wait()
 }
 
-func TestQueueThreadSafety3(t *testing.T) {
-	q := NewQueue()
-
-	var wg sync.WaitGroup
-
-	wg.Add(10000)
-
-	for i := 0; i < 5000; i++ {
-		go func() {
-			q.Append(i)
-			wg.Done()
-		}()
-	}
-
-	for i := 0; i < 5000; i++ {
-		go func() {
-			q.Pop()
-			wg.Done()
-		}()
-	}
-
-	wg.Wait()
-}
-
 func TestQueueLength(t *testing.T) {
 	q := NewQueue()
 

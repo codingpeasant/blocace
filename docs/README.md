@@ -26,7 +26,7 @@ System prerequisites:
 $ git clone https://github.com/codingpeasant/blocace.git
 $ cd blocace
 $ go get
-$ go build -ldflags="-s -w -X main.version=0.0.6"
+$ go build -ldflags="-s -w -X main.version=0.1.0"
 $ ./blocace server
 
 		 ____  __     __    ___   __    ___  ____ 
@@ -34,7 +34,7 @@ $ ./blocace server
 		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
 		(____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition 0.0.6
+			Community Edition 0.1.0
 
 INFO[2020-01-29T23:32:42-05:00] configurations:                               loglevel=info maxtime=2000 maxtx=2048 path=data port=6899
 INFO[2020-01-29T23:32:42-05:00] cannot find the db file. creating new...     
@@ -303,7 +303,7 @@ $ ./blocace s -h
 		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
 		(____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition 0.0.6
+			Community Edition 0.1.0
 
 NAME:
    blocace server - start the major blocace server
@@ -328,7 +328,7 @@ $ ./blocace s -l debug
 		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
 		(____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition 0.0.6
+			Community Edition 0.1.0
 
 INFO[2020-02-01T12:03:53-05:00] configurations:                               loglevel=debug maxtime=2000 maxtx=2048 path=data port=6899
 INFO[2020-02-01T12:03:53-05:00] db file exists.                              
@@ -346,7 +346,7 @@ $ ./blocace k -h
 		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
 		(____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition 0.0.6
+			Community Edition 0.1.0
 
 NAME:
    blocace keygen - generate and register an admin account
@@ -366,7 +366,7 @@ $ ./blocace k
 		 ) _ (/ (_/\(  O )( (__ /    \( (__ ) _) 
 		(____/\____/ \__/  \___)\_/\_/ \___)(____)
 
-			Community Edition 0.0.6
+			Community Edition 0.1.0
 
 INFO[2020-02-01T12:02:30-05:00] db file exists. generating an admin keypair and registering an account... 
 INFO[2020-02-01T12:02:30-05:00] the account has been created and registered successfully 
@@ -684,7 +684,7 @@ Output:
 ]
 ```
 ### `async getPeers()`
-et the basic information of the alive peers known to node that the client currently talks to
+Get the basic information of the alive peers known to node that the client currently talks to
 
 Example:
 ```
