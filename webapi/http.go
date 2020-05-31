@@ -258,8 +258,7 @@ func (h HTTPHandler) HandlePeers(w http.ResponseWriter, r *http.Request) {
 
 	peers := h.p2p.GetPeers()
 	if bytes.Compare(peers, []byte("null")) == 0 {
-		http.Error(w, "{\"message\": \"no live peers\"}", 404)
-		return
+		peers = []byte("[]")
 	}
 
 	w.Header().Set("Content-Type", "application/json")

@@ -124,7 +124,7 @@ func main() {
 				cli.StringFlag{
 					Name:        "peerAddresses, e",
 					Value:       "",
-					Usage:       "the comma-seperated address:port list of the peers (optional)",
+					Usage:       "the comma-separated address:port list of the peers (optional)",
 					Destination: &peerAddresses,
 				},
 				cli.StringFlag{
