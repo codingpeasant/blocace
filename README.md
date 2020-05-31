@@ -1,5 +1,5 @@
 <a href="https://www.blocace.com">
-	<img width="300" src="./blocace-full-logo.png" alt="blocace Logo" />
+	<img width="300" src="https://blocace.com/images/blocace-full-logo.png" alt="blocace Logo" />
 </a>
 <hr/>
 

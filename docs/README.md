@@ -357,7 +357,7 @@ console.log('Peers of ' + queryRes.hits[0]._blockchainId + ': ' + JSON.stringify
 ```
 Output
 ```
-Peers ofcba1739c9aeabc0698a5da2a701f22c6f2e4c0122b2a44d019bd4b6105a4801c: [{"public_key":"45b3c9f26eef3b0bfbdea99af1731ab7a08a1dfcaf58a7e8abf55db73eda45c9","address":"::","Port":6092,"Address":":6092"},{"public_key":"70a50de06cbc9e36010e9277c6ae74bafce8af4e6c4b168b864a373a3a8d1a1f","address":"::","Port":6093,"Address":":6093"}]
+Peers of cba1739c9aeabc0698a5da2a701f22c6f2e4c0122b2a44d019bd4b6105a4801c: [{"public_key":"45b3c9f26eef3b0bfbdea99af1731ab7a08a1dfcaf58a7e8abf55db73eda45c9","address":"::","Port":6092,"Address":":6092"},{"public_key":"70a50de06cbc9e36010e9277c6ae74bafce8af4e6c4b168b864a373a3a8d1a1f","address":"::","Port":6093,"Address":":6093"}]
 ```
 In this example, the blocace-js client is configured talking to a single server. The `getPeers()` returns the alive peer(s) that are currently known this server.
 
