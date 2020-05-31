@@ -20,7 +20,7 @@ System prerequisites:
 
 ```
 
-### 1. Compile and start Blocace server
+## 1. Compile and start Blocace server
 
 ```bash
 $ git clone https://github.com/codingpeasant/blocace.git
@@ -51,7 +51,7 @@ INFO[2020-01-29T23:32:42-05:00] awaiting signal...
 ```
 By default, __Blocace__ creates a `data` directory within the working dir to store the blockchain and DB collections; the time interval to generate a block is 2 seconds; the max number of transactions (about documents) is 2048; it listens on port 6899 for web API calls. Please keep a note of the root private key which will be used to make administration API calls to Blocace server.
 
-### 2. Run example.js with the root admin account private key
+## 2. Run example.js with the root admin account private key
 ```bash
 # open a new terminal tab and run
 $ git clone https://github.com/codingpeasant/blocace-js.git
@@ -64,7 +64,7 @@ That's it. You have successfully built Blocace server and accessed *ALL* its web
 # Step-by-step breakdown of example.js
 > If you'd like to know more about the APIs, please continue reading.
 
-### Setup root account
+## Setup root account
 ```javascript
 var blocace = Blocace.createFromPrivateKey(process.argv[2])
 
@@ -78,7 +78,7 @@ Output
 ```
 Private key decrypted: true
 ```
-### Create account using the root account (private key)
+## Create account using the root account (private key)
 ```javascript
 // get JWT
 const jwt = await blocace.getJWT()
@@ -103,7 +103,7 @@ New account Info: {"address":"699 Canton Court, Mulino, South Dakota, 9647","col
 ```
 First login as the root admin user and obtain a [JSON Web Token](https://jwt.io/) to access Blocace server and create a new user account without read/write permissions. And then get the account information noting that `"collectionsReadOverride":null,"collectionsWrite":null`
 
-### Grant collection-level permission to the new user
+## Grant collection-level permission to the new user
 ```javascript
 // set the new account read / write permission
 const accountPermissionRes = await blocace.setAccountReadWrite(permission, accountRes.data.address)
@@ -121,7 +121,7 @@ Get the update account: {"address":"699 Canton Court, Mulino, South Dakota, 9647
 ```
 Setting the read/write permission to the new user: `'collectionsWrite': ['default', 'new1'],'collectionsReadOverride': ['default', 'collection2', 'new1']`.
 
-### Create a new collection as the root admin user
+## Create a new collection as the root admin user
 ```javascript
 // create collection
 const collectionCreationRes = await blocace.createCollection(collectionMappingPaylod)
@@ -134,7 +134,7 @@ New collection info: {"message":"collection new1 created"}
 ```
 Create the collection (or table in SQL databases) with defined schema.
 
-### Update the new user account information
+## Update the new user account information
 ```javascript
 // initialize the new user account
 var blocaceUser = Blocace.createFromPrivateKey('277d271593d205c6078964c31fb393303efd76d5297906f60d2a7a7d7d12c99a')
@@ -155,7 +155,7 @@ Update account response: {"message":"account updated","address":"0xf55486314B0C4
 ```
 Login as the new user and update its own account's email address. Note that the account information is just for convenience to track identity and doesn't affect the usage of Blocace
 
-### Sign and put documents to Blocace and query them
+## Sign and put documents to Blocace and query them
 ```javascript
 // put 10 documents
 for (let index = 0; index < 10; index++) {
@@ -240,7 +240,7 @@ Sign each of the documents with the new user's private key and send them to Bloc
 }
 ```
 
-### Verify the integrity of the documents
+## Verify the integrity of the documents
 ```javascript
 // verify if the transaction is included in the block (by block merkle tree rebuild)
 const verificationPassed = await blocaceUser.verifyTransaction(queryRes.hits[0]._blockchainId, queryRes.hits[0]._blockId, queryRes.hits[0]._id)
@@ -258,7 +258,7 @@ The document's integrity check passed: true
 The Blocace client first verifies that the document has been persisted in the blockchain and that the document is not tempered with. This is the blockchain philosophy:
 > Don't Trust. Verify!
 
-### Get block, blockchain and collection administration information
+## Get block, blockchain and collection administration information
 ```javascript
 // get block information
 const blockRes = await blocace.getBlockInfo(queryRes.hits[0]._blockId)
@@ -288,7 +288,7 @@ Collection new1 data schema: {"message":"ok","mapping":{"collection":"new1","fie
 ```
 Blocace client is able to get adminstration information about a given block. In this example, the `blockHeight` is `1` as this block is the 2nd in the blockchain (after the genesis block). It has `10` transaction documents that we just put; the blockchain has `11` transaction documents: 1 `genesis transactions` + 10 `user transactions`; it also gets the schema of collection `new1`.
 
-### You're all set! Go ahead an build your web DAPP around Blocace!
+> You're all set! Go ahead an build your web DAPP around Blocace!
 
 # Usage Reference
 Note that the APIs are constantly changing in the pre-release phase.
