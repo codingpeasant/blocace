@@ -1,6 +1,5 @@
-<a href="https://www.blocace.com">
-	<img width="300" src="https://blocace.com/images/blocace-full-logo.png" alt="blocace Logo" />
-</a>
+[![Bloace](./assets/blocace-full.png)]
+
 <hr/>
 
 [![Build Status](https://travis-ci.com/codingpeasant/blocace.svg?branch=master)](https://travis-ci.com/codingpeasant/blocace) [![GoDoc](https://godoc.org/github.com/codingpeasant/blocace?status.svg)](https://godoc.org/github.com/codingpeasant/blocace) [![Go Report Card](https://goreportcard.com/badge/github.com/codingpeasant/blocace)](https://goreportcard.com/report/github.com/codingpeasant/blocace) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -32,7 +31,7 @@ go build -ldflags="-s -w -X main.version=0.0.6"
 If you'd like to try Blocace directly, please navigate to [Releases](https://github.com/codingpeasant/blocace/releases) and get the right binary for your OS/ARCH.
 
 ## Docs
-Checkout [Blocace In 10 Minutes](https://blocace.com/docs/#/) and [Blocace APIs Reference](https://blocace.com/docs/#/?id=usage-reference)
+Checkout [Blocace JS Client Example](https://github.com/codingpeasant/blocace-js/blob/master/example.js) and [Blocace APIs Reference](https://github.com/codingpeasant/blocace-js/blob/master/README.md)
 
 ## License
 Blocace is licensed as [Apache 2.0](https://github.com/codingpeasant/blocace/blob/master/LICENSE).

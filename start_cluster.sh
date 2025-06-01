@@ -14,7 +14,7 @@ trap "exit" INT TERM ERR
 trap "kill 0" EXIT
 
 go get
-go build -ldflags="-s -w -X main.version=0.1.0"
+go build -ldflags="-s -w -X main.version=0.6.0"
 rm -rf ./data*
 
 for ((n = 0; n < $1; n++)); do
